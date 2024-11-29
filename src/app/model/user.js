@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    referal: {
+      type: String,
+      unique: true,
+    },
     company: {
       type: String,
     },

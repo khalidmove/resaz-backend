@@ -73,11 +73,12 @@ module.exports = {
           username: payload?.username,
           email: payload?.email,
           number: payload?.number,
+          referal: payload?.referal,
           type: payload?.type
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
-        await mailNotification.welcomeMail(user)
+        // await mailNotification.welcomeMail(user)
         res.status(200).json({ success: true, data: user });
       }
     } catch (error) {
@@ -124,12 +125,12 @@ module.exports = {
         return response.badReq(res, { message: "Email does exist." });
       }
       // OTP is fixed for Now: 0000
-      let ran_otp = Math.floor(1000 + Math.random() * 9000);
-      await mailNotification.sendOTPmail({
-        code: ran_otp,
-        email: email
-      });
-      // let ran_otp = "0000";
+      // let ran_otp = Math.floor(1000 + Math.random() * 9000);
+      // await mailNotification.sendOTPmail({
+      //   code: ran_otp,
+      //   email: email
+      // });
+      let ran_otp = "0000";
       // if (
       //   !ver ||
       //   new Date().getTime() > new Date(ver.expiration_at).getTime()
