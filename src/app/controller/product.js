@@ -102,6 +102,14 @@ module.exports = {
             return response.error(res, error);
         }
     },
+    getProductbycategory: async (req, res) => {
+        try {
+            let product = await Product.find({ category: req.params.id }).populate('category');
+            return response.ok(res, product);
+        } catch (error) {
+            return response.error(res, error);
+        }
+    },
 
     getProductBycategoryId: async (req, res) => {
         console.log(req.query)

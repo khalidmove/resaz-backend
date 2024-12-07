@@ -20,6 +20,18 @@ const productchema = new mongoose.Schema({
     gender: {
         type: String,
     },
+    origin: {
+        type: String,
+    },
+    selflife: {
+        type: String,
+    },
+    manufacturername: {
+        type: String,
+    },
+    manufactureradd: {
+        type: String,
+    },
     name: {
         type: String,
     },
