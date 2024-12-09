@@ -337,7 +337,7 @@ module.exports = {
                     productDetail: { $elemMatch: { seller_id: req.user.id } },
                 }
             }
-            const product = await ProductRequest.find(cond).populate('user', '-password -varients').sort({ createdAt: -1 })
+            const product = await ProductRequest.find(cond).populate('user', '-password -varients').populate('productDetail.product').sort({ createdAt: -1 })
             return response.ok(res, product);
         } catch (error) {
             return response.error(res, error);
