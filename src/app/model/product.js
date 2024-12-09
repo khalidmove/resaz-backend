@@ -32,6 +32,9 @@ const productchema = new mongoose.Schema({
     manufactureradd: {
         type: String,
     },
+    expirydate: {
+        type: Date,
+    },
     name: {
         type: String,
     },
