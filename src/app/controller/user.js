@@ -14,6 +14,7 @@ const Verification = mongoose.model("Verification");
 const Notification = mongoose.model("Notification");
 const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
+const generateUniqueId = require('generate-unique-id');
 
 module.exports = {
   // login controller
@@ -69,11 +70,27 @@ module.exports = {
           message: "Email Id already exists.",
         });
       } else {
+        let name = payload?.username
+        const id3 = generateUniqueId({
+          includeSymbols: ['@','#'],
+          length:8,
+          // useLetters:false
+        });
+        let n = name.replaceAll(' ','');
+        var output =n.substring(0, 2) +
+        n.substring(2, n.length - 2).replace(/./g, '*') +
+        n.substring(n.length - 2, n.length);
+        let n2 = output.split('*')[0];
+        let n3 = output.split('*')[output.split('*').length -1];
+        console.log(n2, id3, n3)
+        let n4 = n2+id3+n3
+        let d= n4.toUpperCase()
+        console.log(d)
         let user = new User({
           username: payload?.username,
           email: payload?.email,
           number: payload?.number,
-          referal: payload?.referal,
+          referal: d,
           type: payload?.type
         });
         user.password = user.encryptPassword(req.body.password);

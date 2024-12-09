@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Category = mongoose.model("Category");
 const response = require("./../responses");
 const mailNotification = require("../services/mailNotification");
+const generateUniqueId = require("generate-unique-id");
 
 
 
@@ -22,6 +23,22 @@ module.exports = {
 
     getCategory: async (req, res) => {
         try {
+            let name = "Chetan"
+            const id3 = generateUniqueId({
+                includeSymbols: ['@','#'],
+                length:8,
+                // useLetters:false
+              });
+              let n = name.replaceAll(' ','');
+              var output = n.substring(0, 2) +
+              n.substring(2, n.length - 2).replace(/./g, '*') +
+              n.substring(n.length - 2, n.length)
+              let n2 = output.split('*')[0];
+              let n3 = output.split('*')[output.split('*').length -1];
+              console.log(n2, id3, n3)
+              let n4 = n2+id3+n3
+              let d= n4.toUpperCase()
+              console.log(d)
             let category = await Category.find();
             return response.ok(res, category);
         } catch (error) {
