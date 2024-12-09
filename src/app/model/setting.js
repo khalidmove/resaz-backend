@@ -7,6 +7,10 @@ const settingSchema = new mongoose.Schema(
         carousel: [{
             type: String,
         }],
+        referelpoint: {
+            type: Number,
+            default:10
+        },
 
     },
     {

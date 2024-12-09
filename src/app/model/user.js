@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    referalpoints: {
+      type: Number,
+      default:0
+    },
     company: {
       type: String,
     },

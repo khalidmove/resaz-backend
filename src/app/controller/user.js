@@ -15,6 +15,7 @@ const Notification = mongoose.model("Notification");
 const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
 const generateUniqueId = require('generate-unique-id');
+const Setting = mongoose.model('Setting');
 
 module.exports = {
   // login controller
@@ -88,6 +89,12 @@ module.exports = {
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
+        if(payload?.referal){
+          const refuser = await User.findOne({ referal: payload.referal });
+          const setting = await Setting.findOne();
+          refuser.referalpoints = (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint)
+         await refuser.save();
+        }
         // await mailNotification.welcomeMail(user)
         res.status(200).json({ success: true, data: user });
       }
