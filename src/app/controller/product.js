@@ -373,7 +373,7 @@ module.exports = {
 
     getrequestProductbyid: async (req, res) => {
         try {
-            const product = await ProductRequest.findById(req.params.id).populate('user', '-password').populate('product')
+            const product = await ProductRequest.findById(req.params.id).populate('user', '-password').populate('productDetail.product')
             return response.ok(res, product);
         } catch (error) {
             return response.error(res, error);
