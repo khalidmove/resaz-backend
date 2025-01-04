@@ -27,7 +27,7 @@ router.get("/getuserlist/:type", isAuthenticated(["USER", "ADMIN", "SELLER"]), u
 router.get("/getSellerList", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getSellerList);
 router.post("/getInTouch", user.createGetInTouch);
 router.get("/getInTouch/:id", user.updateGetInTouch);
-router.get("/get-getInTouch", user.getGetInTouch);
+router.post("/get-getInTouch", user.getGetInTouch);
 router.delete("/user/delgetintouch/:id", user.deleteGetInTouch);
 
 router.post("/add-subscriber", user.addNewsLetter);
@@ -211,7 +211,7 @@ router.get(
     product.getrequestProduct
 );
 
-router.get(
+router.post(
     "/getOrderBySeller",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getOrderBySeller

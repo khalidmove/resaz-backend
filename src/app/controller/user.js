@@ -478,7 +478,12 @@ module.exports = {
 
   getGetInTouch: async (req, res) => {
     try {
-      let blog = await Getintouch.find().sort({ createdAt: -1 });
+      let cond ={}
+      if(req.body.curDate){
+        const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
+        cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
+      }
+      let blog = await Getintouch.find(cond).sort({ createdAt: -1 });
       return response.ok(res, blog);
     } catch (error) {
       return response.error(res, error);
