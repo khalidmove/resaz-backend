@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Store = mongoose.model("Store");
 const response = require("./../responses");
 const mailNotification = require("../services/mailNotification");
+// const User = mongoose.model("User");
+const User = require("../model/user");
 
 
 
@@ -12,6 +14,22 @@ module.exports = {
             const payload = req?.body || {};
             let cat = new Store(payload);
             await cat.save();
+            const users = await User.findById(cat.userid);
+            console.log(users);
+            
+            if (!users) {
+                return response.error(res, { message: 'User  not found' });
+            }
+            users.type = 'SELLER';  
+            console.log("User  before saving:", users);
+            
+            try {
+                await users.save();
+                console.log("User  type updated to SELLER", users.save());
+            } catch (saveError) {
+                console.error("Error saving user:", saveError);
+                return response.error(res, { message: 'Failed to update user type' });
+            }
             return response.ok(res, { message: 'Your Log in Details will be send in your email please have a look  !' });
         } catch (error) {
             return response.error(res, error);
