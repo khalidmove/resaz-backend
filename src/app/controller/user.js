@@ -47,6 +47,7 @@ module.exports = {
       return response.ok(res, { ...data });
     })(req, res);
   },
+
   signUp: async (req, res) => {
     try {
       const payload = req.body;
@@ -80,12 +81,25 @@ module.exports = {
         var output =n.substring(0, 2) +id3+n.substring(n.length - 2, n.length);
         let d= output.toUpperCase()
         console.log(d)
+
+        //////////////////
+        if (payload.type === "DRIVER") {
+          if (!payload.numberPlate || !payload.licences) {
+            return res.status(400).json({
+              success: false,
+              message: "Number plate and licences are required for DRIVER type.",
+            });
+          }
+        }
+      /////////////
         let user = new User({
           username: payload?.username,
           email: payload?.email,
           number: payload?.number,
           referal: d,
-          type: payload?.type
+          type: payload?.type,
+          numberPlate: payload?.numberPlate, // Add numberPlate to user object
+          licences: payload?.licences,
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
@@ -257,6 +271,37 @@ module.exports = {
       return response.error(res, error);
     }
   },
+
+
+  getDriverList: async (req, res) => {
+    try {
+      const { type } = req.query;  
+      if (type && type !== "DRIVER") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid type. Only 'DRIVER' is allowed."
+        });
+      }
+      const drivers = await User.find({ type: "DRIVER" });
+      return response.ok(res, drivers);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+    updateStatus: async (req, res) => {
+          try {
+              const payload = req?.body || {};
+              let  driver = await User.findByIdAndUpdate(payload?.id, payload, {
+                  new: true,
+                  upsert: true,
+              });
+              return response.ok(res, driver);
+          } catch (error) {
+              return response.error(res, error);
+          }
+      },
+  
 
   notification: async (req, res) => {
     try {

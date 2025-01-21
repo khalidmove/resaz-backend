@@ -11,7 +11,7 @@ const theme = require("../../app/controller/theme");
 const { getStoreById } = require("../../app/controller/store");
 const store = require("../../app/controller/store");
 const favourite = require("../../app/controller/favourite");
-
+ 
 
 router.post("/login", user.login);
 router.post("/signUp", user.signUp);
@@ -24,6 +24,8 @@ router.post(
     user.fileUpload
 );
 router.get("/getuserlist/:type", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getUserList);
+router.get("/getDriverList/:type", isAuthenticated(["USER", "ADMIN", "SELLER", "DRIVER"]), user.getDriverList);
+router.post("/updateStatus", isAuthenticated(["ADMIN", "DRIVER"]), user.updateStatus);
 router.get("/getSellerList", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getSellerList);
 router.post("/getInTouch", user.createGetInTouch);
 router.get("/getInTouch/:id", user.updateGetInTouch);
@@ -189,6 +191,7 @@ router.post(
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     store.deleteAllStore
 );
+
 
 /// setting
 router.post("/createsetting", setting.createSetting);

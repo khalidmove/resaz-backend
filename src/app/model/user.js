@@ -46,9 +46,19 @@ const userSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["USER", "ADMIN", "SELLER"],
+      enum: ["USER", "ADMIN", "SELLER", "DRIVER"],
       default: "USER",
     },
+    status: {
+      type: String,
+      default:"Pending"
+    },
+    licences: {
+      type: String
+    },
+    numberPlate: {
+      type: String
+    }
   },
   {
     timestamps: true,
