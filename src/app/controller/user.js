@@ -84,10 +84,10 @@ module.exports = {
 
         //////////////////
         if (payload.type === "DRIVER") {
-          if (!payload.numberPlate || !payload.licences) {
+          if (!payload.numberPlate || !payload.licences || !payload.numberPlateImg) {
             return res.status(400).json({
               success: false,
-              message: "Number plate and licences are required for DRIVER type.",
+              message: "Number plate image and licences are required for DRIVER type.",
             });
           }
         }
@@ -98,7 +98,8 @@ module.exports = {
           number: payload?.number,
           referal: d,
           type: payload?.type,
-          numberPlate: payload?.numberPlate, // Add numberPlate to user object
+          numberPlate: payload?.numberPlate,  
+          numberPlateImg:payload?.numberPlateImg,
           licences: payload?.licences,
         });
         user.password = user.encryptPassword(req.body.password);

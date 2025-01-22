@@ -58,6 +58,9 @@ const userSchema = new mongoose.Schema(
     },
     numberPlate: {
       type: String
+    },
+    numberPlateImg: {
+      type: String
     }
   },
   {
