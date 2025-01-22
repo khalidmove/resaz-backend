@@ -59,11 +59,9 @@ const userSchema = new mongoose.Schema(
     numberPlate: {
       type: String
     },
-    numberPlateImg: [
-      {
-        type: String
-      }
-    ],
+    numberPlateImg: {
+      type: String
+    }
   },
   {
     timestamps: true,
