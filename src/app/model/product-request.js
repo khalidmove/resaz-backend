@@ -43,7 +43,7 @@ const productrequestchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
     },
-    shiping_address: {
+    shipping_address: {
         type: Object,
     },
     total: {

@@ -428,4 +428,16 @@ module.exports = {
             return response.error(res, error);
         }
     },
+    uploadProducts : async (req, res) => {
+        try {
+            const products = req.body;
+            
+            const insertedProducts = await Product.insertMany(products);
+            return res.status(201).json({ message: "Products uploaded successfully", data: insertedProducts });
+        } catch (error) {
+            return res.status(500).json({ message: "Server Error", error: error.message });
+        }
+    },
+
+
 };

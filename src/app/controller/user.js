@@ -125,7 +125,7 @@ module.exports = {
       }
       user.password = user.encryptPassword(req.body.password);
       await user.save();
-      mailNotification.passwordChange({ email: user.email });
+      // mailNotification.passwordChange({ email: user.email });
       return response.ok(res, { message: "Password changed." });
     } catch (error) {
       return response.error(res, error);

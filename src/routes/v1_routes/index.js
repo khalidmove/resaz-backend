@@ -11,7 +11,8 @@ const theme = require("../../app/controller/theme");
 const { getStoreById } = require("../../app/controller/store");
 const store = require("../../app/controller/store");
 const favourite = require("../../app/controller/favourite");
- 
+const { createContent, getContent, updateContent } = require("../../app/controller/ContentManagement");
+const { getFaqs, createFaq, updateFaq, deleteFaq } = require('../../app/controller/Faq');
 
 router.post("/login", user.login);
 router.post("/signUp", user.signUp);
@@ -35,11 +36,11 @@ router.delete("/user/delgetintouch/:id", user.deleteGetInTouch);
 router.post("/add-subscriber", user.addNewsLetter);
 router.get("/get-subscriber", user.getNewsLetter);
 router.post("/del-subscriber", user.DeleteNewsLetter);
-// router.post(
-//   "/profile/changePassword",
-//   isAuthenticated(["USER", "ADMIN","SELLER"]),
-//   user.changePasswordProfile
-// );
+router.post(
+  "/profile/changePassword",
+  isAuthenticated(["USER", "ADMIN","SELLER"]),
+  user.changePasswordProfile
+);
 
 router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getProfile);
 router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.updateProfile);
@@ -272,5 +273,38 @@ router.get(
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     user.getReview
 );
+router.post("/uploadAllproduct", 
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.uploadProducts);
+
+router.get("/getAlluploadproduct",product.uploadProducts);
+
+
+router.post('/content', 
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    createContent);
+
+router.get('/content',
+    getContent);
+
+router.post('/content/update',
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    updateContent);
+
+
+router.get('/faq',getFaqs);
+
+router.post('/faq', 
+isAuthenticated(["USER", "ADMIN", "SELLER"]),
+createFaq);
+
+router.post('/updatefaq/:id', 
+isAuthenticated(["USER", "ADMIN", "SELLER"]),
+updateFaq);
+
+router.delete('/deletefaq/:id',
+isAuthenticated(["USER", "ADMIN", "SELLER"]),
+deleteFaq);
+
 
 module.exports = router;
