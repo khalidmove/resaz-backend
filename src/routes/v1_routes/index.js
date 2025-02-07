@@ -166,6 +166,11 @@ router.post(
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.deleteAllProduct
 );
+router.post(
+    "/Suspend/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.suspendProduct
+);
 
 
 //Store

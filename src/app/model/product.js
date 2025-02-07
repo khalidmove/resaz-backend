@@ -86,6 +86,11 @@ const productchema = new mongoose.Schema({
     sponsered: {
         type: Boolean
     },
+    status: {
+        type: String,
+        enum: ["verified", "suspended"],
+        default: "verified",
+      },
     attributes: [
         {
             name: { type: String },

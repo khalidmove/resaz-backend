@@ -439,5 +439,29 @@ module.exports = {
         }
     },
 
+     suspendProduct : async (req, res) => {
+        try {
+          const { id } = req.params;
+
+          const product = await Product.findById(id);
+       
+          if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+          }
+      
+          if (product.status === 'suspended') {
+            return res.status(200).json({ message: 'Product is already suspended' });
+          }
+      
+          product.status = 'suspended';
+          const updatedProduct = await product.save();
+      
+          res.status(200).json(updatedProduct);
+        } catch (error) {
+          res.status(500).json({ message: error.message });
+        }
+      },
+      
+      
 
 };

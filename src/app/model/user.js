@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema(
     company: {
       type: String,
     },
-    shiping_address: {
+    shipping_address: {
       type: Object,
     },
     type: {
