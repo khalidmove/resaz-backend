@@ -40,6 +40,20 @@ module.exports = {
             return response.error(res, error);
         }
     },
+    getProductforseller: async (req, res) => {
+        try {
+            const { page = 1, limit = 20 } = req.query;
+            // let data = {}
+            // if (req.query.seller_id) {
+            //     data.userid = req.query.seller_id
+            // }
+            let product = await Product.find({userid:req.user.id}).sort({ 'createdAt': -1 }).limit(limit * 1)
+            .skip((page - 1) * limit);
+            return response.ok(res, product);
+        } catch (error) {
+            return response.error(res, error);
+        }
+    },
 
     getSponseredProduct: async (req, res) => {
         try {

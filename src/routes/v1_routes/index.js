@@ -130,6 +130,7 @@ router.post(
     product.createProduct
 );
 router.get("/getProduct", product.getProduct);
+router.get("/getProductforseller",isAuthenticated(["USER", "ADMIN", "SELLER"]), product.getProductforseller);
 router.get("/getSponseredProduct", product.getSponseredProduct);
 
 router.post(
