@@ -1,6 +1,17 @@
 'use strict';
 
 const mongoose = require('mongoose');
+
+const pointSchema = new mongoose.Schema({
+    type: {
+      type: String,
+      enum: ["Point"],
+    },
+    coordinates: {
+      type: [Number],
+    },
+  });
+
 const productrequestchema = new mongoose.Schema({
     // category: [{
     //     type: mongoose.Schema.Types.ObjectId,
@@ -32,10 +43,10 @@ const productrequestchema = new mongoose.Schema({
                 default: 'Pending'
             },
             seller_id: {
-                user: {
+                // user: {
                     type: mongoose.Schema.Types.ObjectId,
                     ref: "User",
-                },
+                // },
             },
         }
     ],
@@ -48,7 +59,10 @@ const productrequestchema = new mongoose.Schema({
     },
     total: {
         type: Number
-    }
+    },
+    location: {
+        type: pointSchema,
+      },
 
 }, {
     timestamps: true
@@ -62,5 +76,6 @@ productrequestchema.set('toJSON', {
         return ret;
     }
 });
+productrequestchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model('ProductRequest', productrequestchema);

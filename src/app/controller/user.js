@@ -83,14 +83,14 @@ module.exports = {
         console.log(d)
 
         //////////////////
-        if (payload.type === "DRIVER") {
-          if (!payload.numberPlate || !payload.licences || !payload.numberPlateImg) {
-            return res.status(400).json({
-              success: false,
-              message: "Number plate image and licences are required for DRIVER type.",
-            });
-          }
-        }
+        // if (payload.type === "DRIVER") {
+        //   if (!payload.numberPlate || !payload.licences || !payload.numberPlateImg) {
+        //     return res.status(400).json({
+        //       success: false,
+        //       message: "Number plate image and licences are required for DRIVER type.",
+        //     });
+        //   }
+        // }
       /////////////
         let user = new User({
           username: payload?.username,

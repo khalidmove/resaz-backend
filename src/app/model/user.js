@@ -2,17 +2,17 @@
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-//const pointSchema = new mongoose.Schema({
-//     type: {
-//         type: String,
-//         enum: ['Point'],
-//         required: true
-//     },
-//     coordinates: {
-//         type: [Number],
-//         required: true
-//     }
-// });
+const pointSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: ['Point'],
+        required: true
+    },
+    coordinates: {
+        type: [Number],
+        required: true
+    }
+});
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -29,6 +29,9 @@ const userSchema = new mongoose.Schema(
     number: {
       type: String,
       unique: true,
+    },
+    location: {
+      type: pointSchema,
     },
     referal: {
       type: String,
@@ -82,4 +85,5 @@ userSchema.methods.encryptPassword = (password) => {
 userSchema.methods.isValidPassword = function isValidPassword(password) {
   return bcrypt.compareSync(password, this.password);
 };
+userSchema.index({ location: "2dsphere" });
 module.exports = mongoose.model("User", userSchema);

@@ -346,10 +346,10 @@ module.exports = {
     getOrderBySeller: async (req, res) => {
         try {
             let cond = {}
-            if(req.body.curDate){
-                const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
-                cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
-              } 
+            // if(req.body.curDate){
+            //     const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
+            //     cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
+            //   } 
             if (req.user.type === "SELLER") {
                 cond = {
                     productDetail: { $elemMatch: { seller_id: req.user.id } },
