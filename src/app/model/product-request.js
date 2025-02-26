@@ -26,9 +26,6 @@ const productrequestchema = new mongoose.Schema({
             image: [{
                 type: String,
             }],
-            color: {
-                type: String
-            },
             total: {
                 type: Number
             },
@@ -38,21 +35,24 @@ const productrequestchema = new mongoose.Schema({
             price: {
                 type: Number
             },
-            status: {
-                type: String,
-                default: 'Pending'
-            },
-            seller_id: {
-                // user: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "User",
-                // },
-            },
+            
         }
     ],
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+    },
+    status: {
+        type: String,
+        default: 'Pending'
+    },
+    seller_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+    },
+    driver_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
     },
     shipping_address: {
         type: Object,

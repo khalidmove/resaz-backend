@@ -322,14 +322,47 @@ module.exports = {
     requestProduct: async (req, res) => {
         try {
             const payload = req?.body || {};
-            payload.user = req.user.id
-            let cat = new ProductRequest(payload);
-            await cat.save();
+            // payload.user = req.user.id
+            const sellerOrders = {};
+            payload.productDetail.forEach((item) => {
+                const sellerId = item.seller_id?.toString(); // Assuming seller_id is sent inside productDetail
+                if (!sellerId) return;
+        
+                if (!sellerOrders[sellerId]) {
+                    sellerOrders[sellerId] = {
+                        user: req.user.id,
+                        seller_id: sellerId,
+                        status:"Pending",
+                        productDetail: [],
+                        shipping_address: payload.shipping_address,
+                        total: 0,
+                        location: payload.location,
+                    };
+                }
+        
+                sellerOrders[sellerId].productDetail.push({
+                    product: item.product,
+                    image: item.image,
+                    qty: item.qty,
+                    price: item.price,
+                });
+        
+                // Calculate total price for this product
+                sellerOrders[sellerId].total += item.qty * item.price;
+            });
+            console.log('sellerOrders',sellerOrders)
+    // Save separate orders for each seller
+    const savedOrders = [];
+    for (const sellerId in sellerOrders) {
+        const newOrder = new ProductRequest(sellerOrders[sellerId]);
+        await newOrder.save();
+        savedOrders.push(newOrder);
+    }
             if (payload.shiping_address) {
                 await User.findByIdAndUpdate(req.user.id, { shiping_address: payload.shiping_address })
             }
-            // await Product.findByIdAndUpdate(payload?.productDetail._id, payload.productDetail);
-            return response.ok(res, { message: 'Product request added successfully' });
+
+            return response.ok(res, { message: 'Product request added successfully',orders:savedOrders });
         } catch (error) {
             return response.error(res, error);
         }
@@ -352,7 +385,7 @@ module.exports = {
             //   } 
             if (req.user.type === "SELLER") {
                 cond = {
-                    productDetail: { $elemMatch: { seller_id: req.user.id } },
+                   seller_id: req.user.id,status:{ $in: ['Pending', 'Packed'] },
                 }
             }
             const product = await ProductRequest.find(cond).populate('user', '-password -varients').populate('productDetail.product').sort({ createdAt: -1 })
@@ -361,6 +394,30 @@ module.exports = {
             return response.error(res, error);
         }
     },
+    getAssignedOrder: async (req, res) => {
+        try {
+            let cond = {}
+            if (req.user.type === "SELLER") {
+                cond = {
+                   seller_id: req.user.id,status:'Driverassigned',
+                }
+            }
+            const product = await ProductRequest.find(cond).populate('user', '-password').populate('productDetail.product').sort({ createdAt: -1 })
+            return response.ok(res, product);
+        } catch (error) {
+            return response.error(res, error);
+        }
+    },
+    changeorderstatus: async (req, res) => {
+        try {
+          const product = await ProductRequest.findById(req.body.id)
+          product.status=req.body.status
+          product.save();
+          return response.ok(res, product);
+        } catch (error) {
+          return response.error(res, error);
+        }
+      },
 
     productSearch: async (req, res) => {
         try {
@@ -391,12 +448,33 @@ module.exports = {
 
     getrequestProductbyid: async (req, res) => {
         try {
-            const product = await ProductRequest.findById(req.params.id).populate('user', '-password').populate('productDetail.product')
+            const product = await ProductRequest.findById(req.params.id).populate('user driver_id seller_id', '-password').populate('productDetail.product')
             return response.ok(res, product);
         } catch (error) {
             return response.error(res, error);
         }
     },
+    nearbyorderfordriver: async (req, res) => {
+        try {
+      
+          let orders = await ProductRequest.find({
+            status:'Driverassigned',
+            driver: { $exists: false },
+            location: {
+              $near: {
+                $maxDistance: 1609.34 * 10,
+                $geometry: {
+                  type: "Point",
+                  coordinates: req.body.location,
+                },
+              },
+            },
+          }).populate("user", "-password");
+          return response.ok(res,orders);
+        } catch (err) {
+          return response.error(res, err);
+          }
+        },
 
     getrequestProductbyuser: async (req, res) => {
         try {

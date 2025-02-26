@@ -42,8 +42,8 @@ router.post(
   user.changePasswordProfile
 );
 
-router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getProfile);
-router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.updateProfile);
+router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.getProfile);
+router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.updateProfile);
 
 
 //blogs
@@ -226,6 +226,16 @@ router.post(
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getOrderBySeller
 );
+router.post(
+    "/getAssignedOrder",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getAssignedOrder
+);
+router.post(
+    "/changeorderstatus",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.changeorderstatus
+);
 
 router.get(
     "/productsearch",
@@ -248,6 +258,11 @@ router.get(
     "/getProductRequestbyUser",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getrequestProductbyuser
+);
+router.post(
+    "/nearbyorderfordriver",
+    isAuthenticated(["DRIVER"]),
+    product.nearbyorderfordriver
 );
 
 

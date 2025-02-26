@@ -56,14 +56,50 @@ const userSchema = new mongoose.Schema(
       type: String,
       default:"Pending"
     },
-    licences: {
-      type: String
+    store_name: {
+      type:String
     },
-    numberPlate: {
-      type: String
+    address: {
+      type:String
     },
-    numberPlateImg: {
-      type: String
+    country: {
+      type:String
+    },
+    store_doc: {
+      type:String
+    },
+    national_id_no: {
+      type:String
+    },
+    national_id: {
+      type:String
+    },
+    // licences: {
+    //   type: String
+    // },
+    // numberPlate: {
+    //   type: String
+    // },
+    // numberPlateImg: {
+    //   type: String
+    // },
+    dl_number: {
+      type:String
+    },
+    number_plate_no: {
+      type:String
+    },
+    dl_image: {
+      type:String
+    },
+    number_plate_image: {
+      type:String
+    },
+    address_support_letter: {
+      type:String
+    },
+    background_check_document:{
+      type:String
     }
   },
   {
