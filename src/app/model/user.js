@@ -15,6 +15,9 @@ const pointSchema = new mongoose.Schema({
 });
 const userSchema = new mongoose.Schema(
   {
+    img: {
+      type: String,
+    },
     username: {
       type: String,
     },

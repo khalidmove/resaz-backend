@@ -233,9 +233,12 @@ router.post(
 );
 router.post(
     "/changeorderstatus",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
     product.changeorderstatus
 );
+
+router.get("/orderhistoryfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.orderhistoryfordriver);
+router.get("/orderhistoryforvendor",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.orderhistoryforvendor);
 
 router.get(
     "/productsearch",
@@ -250,7 +253,7 @@ router.post(
 
 router.get(
     "/getProductRequest/:id",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
     product.getrequestProductbyid
 );
 
@@ -264,6 +267,8 @@ router.post(
     isAuthenticated(["DRIVER"]),
     product.nearbyorderfordriver
 );
+router.get("/acceptedorderfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","VENDOR"]), product.acceptedorderfordriver);
+router.post("/acceptorderdriver/:id",isAuthenticated(["USER", "ADMIN","DRIVER","VENDOR"]), product.acceptorderdriver);
 
 
 //Favourite

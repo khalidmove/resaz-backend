@@ -459,22 +459,61 @@ module.exports = {
       
           let orders = await ProductRequest.find({
             status:'Driverassigned',
-            driver: { $exists: false },
-            location: {
-              $near: {
-                $maxDistance: 1609.34 * 10,
-                $geometry: {
-                  type: "Point",
-                  coordinates: req.body.location,
-                },
-              },
-            },
+            driver_id: { $exists: false },
+            // location: {
+            //   $near: {
+            //     $maxDistance: 1609.34 * 10,
+            //     $geometry: {
+            //       type: "Point",
+            //       coordinates: req.body.location,
+            //     },
+            //   },
+            // },
           }).populate("user", "-password");
           return response.ok(res,orders);
         } catch (err) {
           return response.error(res, err);
           }
         },
+      acceptedorderfordriver: async (req, res) => {
+        try {
+          const product = await ProductRequest.find({driver_id:req.user.id,status: { $ne: "Delivered" }}).populate("user", "-password");
+          return response.ok(res, product);
+        } catch (error) {
+          return response.error(res, error);
+        }
+      },
+      acceptorderdriver: async (req, res) => {
+        try {
+          const product = await ProductRequest.findById(req.params.id)
+          if (product.driver) {
+            return response.badReq(res, { message: "Order already accepted" });
+          }
+          product.driver_id=req.user.id
+          // product.status='Driveraccepted'
+          product.save();
+          return response.ok(res, product);
+        } catch (error) {
+          return response.error(res, error);
+        }
+      },
+
+      orderhistoryfordriver: async (req, res) => {
+        try {
+          const product = await ProductRequest.find({driver_id:req.user.id,status:"Delivered" }).populate("user", "-password");
+          return response.ok(res, product);
+        } catch (error) {
+          return response.error(res, error);
+        }
+      },
+      orderhistoryforvendor: async (req, res) => {
+        try {
+          const product = await ProductRequest.find({seller_id:req.user.id,status:"Delivered" }).populate("user", "-password");
+          return response.ok(res, product);
+        } catch (error) {
+          return response.error(res, error);
+        }
+      },
 
     getrequestProductbyuser: async (req, res) => {
         try {
