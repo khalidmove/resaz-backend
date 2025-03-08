@@ -3,17 +3,16 @@
 const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
 
-    userType: {
+    title: {
         type: String,
-        trim: true,
-        require: true
-    },
-
-    notification: {
+      },
+      description: {
         type: String,
-        trim: true,
-        require: true
-    },
+      },
+      for:[ {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }],
    
 
 }, {

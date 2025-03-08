@@ -5,7 +5,7 @@ const passport = require("passport");
 const jwtService = require("./../services/jwtService");
 const mailNotification = require("./../services/mailNotification");
 const mongoose = require("mongoose");
-// const Device = mongoose.model("Device");
+const Device = mongoose.model("Device");
 const User = mongoose.model("User");
 const Getintouch = mongoose.model("Getintouch");
 const Newsletter = mongoose.model("Newsletter");
@@ -34,6 +34,11 @@ module.exports = {
         type: user.type,
         tokenVersion: new Date(),
       });
+      await Device.updateOne(
+        { device_token: req.body.device_token },
+        { $set: { player_id: req.body.player_id, user: user._id } },
+        { upsert: true }
+      );
       await user.save();
       let data = {
         token,

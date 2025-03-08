@@ -5,6 +5,7 @@ const User = mongoose.model("User");
 const response = require("./../responses");
 const mailNotification = require("../services/mailNotification");
 const { getReview } = require("../helper/user");
+const { notify } = require("../services/notification");
 // const { User } = require("@onesignal/node-onesignal");
 const Review = mongoose.model("Review");
 const Favourite = mongoose.model("Favourite");
@@ -118,7 +119,9 @@ module.exports = {
     },
     getProductbycategory: async (req, res) => {
         try {
-            let product = await Product.find({ category: req.params.id }).populate('category');
+            const { page = 1, limit = 20 } = req.query;
+            let product = await Product.find({ category: req.params.id }).populate('category').sort({ 'createdAt': -1 }).limit(limit * 1)
+            .skip((page - 1) * limit);
             return response.ok(res, product);
         } catch (error) {
             return response.error(res, error);
@@ -323,8 +326,10 @@ module.exports = {
         try {
             const payload = req?.body || {};
             // payload.user = req.user.id
+            const sellersNotified = new Set();
             const sellerOrders = {};
-            payload.productDetail.forEach((item) => {
+            // payload.productDetail.forEach(async(item) => {
+                for (const item of payload.productDetail) {
                 const sellerId = item.seller_id?.toString(); // Assuming seller_id is sent inside productDetail
                 if (!sellerId) return;
         
@@ -339,6 +344,12 @@ module.exports = {
                         location: payload.location,
                     };
                 }
+                
+                if (!sellersNotified.has(sellerId)) {
+                    await notify(sellerId, "Order received", "You have received a new order");
+                    sellersNotified.add(sellerId);
+                }
+                  
         
                 sellerOrders[sellerId].productDetail.push({
                     product: item.product,
@@ -349,7 +360,8 @@ module.exports = {
         
                 // Calculate total price for this product
                 sellerOrders[sellerId].total += item.qty * item.price;
-            });
+            }
+        // );
             console.log('sellerOrders',sellerOrders)
     // Save separate orders for each seller
     const savedOrders = [];
@@ -357,12 +369,48 @@ module.exports = {
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
         await newOrder.save();
         savedOrders.push(newOrder);
+
+
+        // Update sold_pieces for each product**
+        for (const productItem of sellerOrders[sellerId].productDetail) {
+            await Product.findByIdAndUpdate(
+                productItem.product,
+                { $inc: { sold_pieces: productItem.qty } }, // Increment sold_pieces
+                { new: true }
+            );
+        }
     }
-            if (payload.shiping_address) {
-                await User.findByIdAndUpdate(req.user.id, { shiping_address: payload.shiping_address })
-            }
+            // if (payload.shiping_address) {
+            //     await User.findByIdAndUpdate(req.user.id, { shiping_address: payload.shiping_address })
+            // }
+            if (payload.user&&payload.pointtype === "REDEEM") {
+                let userdata = await User.findById(payload.user);
+                // if (payload.pointtype === "REDEEM") {
+                  userdata.referalpoints = userdata.referalpoints - Number(payload.point);
+                  userdata.save();
+                // } 
+                // else {
+                //   userdata.point = userdata.point + Number(payload.point);
+                //   userdata.save();
+                // }
+        
+                
+              }
 
             return response.ok(res, { message: 'Product request added successfully',orders:savedOrders });
+        } catch (error) {
+            return response.error(res, error);
+        }
+    },
+    getTopSoldProduct: async (req, res) => {
+        try {
+            const { page = 1, limit = 20 } = req.query;
+            // const products = await Product.find({ sold_pieces: { $gte: 1 } }) // Only products with at least 1 sold
+            const products = await Product.find()
+            .sort({ sold_pieces: -1 }) 
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+            return response.ok(res, products);
         } catch (error) {
             return response.error(res, error);
         }
@@ -412,6 +460,37 @@ module.exports = {
         try {
           const product = await ProductRequest.findById(req.body.id)
           product.status=req.body.status
+          if (req.body.status==='Driverassigned') {
+            let driverlist = await User.find({
+                type:'Driver',
+                location: {
+                  $near: {
+                    $maxDistance: 1609.34 * 10,
+                    $geometry: product.location,
+                  },
+                },
+              })
+                await notify(
+                    driverlist,
+                  "New Order receive",
+                  "You New Order receive for delivery"
+                );
+          }
+          if (req.body.status==='Delivered') {
+                await notify(
+                    product.user,
+                  "Order delivered",
+                  "You order delivered successfully"
+                );
+          }
+          if (req.body.status==='Collected') {
+                await notify(
+                  product.user,
+                  "Order collected",
+                  "Order collected by driver"
+                );
+          }
+         
           product.save();
           return response.ok(res, product);
         } catch (error) {
@@ -421,16 +500,17 @@ module.exports = {
 
     productSearch: async (req, res) => {
         try {
+            const { page = 1, limit = 20 } = req.query;
             let cond = {
                 '$or': [
                     { name: { $regex: req.query.key, $options: "i" } },
-                    // { categoryName: { $in: [{ $regex: req.query.key, $options: "i" }] } },
-                    // { themeName: { $in: [{ $regex: req.query.key, $options: "i" }] } },
                     { categoryName: { $regex: req.query.key, $options: "i" } },
-                    // { details: { $regex: q.location, $options: "i" } },
                 ]
             };
-            const product = await Product.find(cond).sort({ 'createdAt': -1 }).limit(4);
+            const product = await Product.find(cond).sort({ 'createdAt': -1 })
+            // .select("name offer price userid varients")
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
             return response.ok(res, product);
         } catch (error) {
             return response.error(res, error);
@@ -460,15 +540,15 @@ module.exports = {
           let orders = await ProductRequest.find({
             status:'Driverassigned',
             driver_id: { $exists: false },
-            // location: {
-            //   $near: {
-            //     $maxDistance: 1609.34 * 10,
-            //     $geometry: {
-            //       type: "Point",
-            //       coordinates: req.body.location,
-            //     },
-            //   },
-            // },
+            location: {
+              $near: {
+                $maxDistance: 1609.34 * 10,
+                $geometry: {
+                  type: "Point",
+                  coordinates: req.body.location,
+                },
+              },
+            },
           }).populate("user", "-password");
           return response.ok(res,orders);
         } catch (err) {
@@ -517,42 +597,44 @@ module.exports = {
 
     getrequestProductbyuser: async (req, res) => {
         try {
-            // const product = await ProductRequest.find({ user: req.user.id }).populate('productDetail.product', '-varients')
-            const product = await ProductRequest.aggregate([
-                {
-                    $match: { user: new mongoose.Types.ObjectId(req.user.id) }
-                },
-                {
-                    $unwind: {
-                        path: '$productDetail',
-                        preserveNullAndEmptyArrays: true
-                    }
-                },
-                {
-                    $lookup: {
-                        from: 'products',
-                        localField: 'productDetail.product',
-                        foreignField: '_id',
-                        as: 'productDetail.product',
-                        pipeline: [
+            const { page = 1, limit = 20 } = req.query;
+            const product = await ProductRequest.find({ user: req.user.id }).populate('productDetail.product', '-varients').limit(limit * 1)
+            .skip((page - 1) * limit)
+            // const product = await ProductRequest.aggregate([
+            //     {
+            //         $match: { user: new mongoose.Types.ObjectId(req.user.id) }
+            //     },
+            //     {
+            //         $unwind: {
+            //             path: '$productDetail',
+            //             preserveNullAndEmptyArrays: true
+            //         }
+            //     },
+            //     {
+            //         $lookup: {
+            //             from: 'products',
+            //             localField: 'productDetail.product',
+            //             foreignField: '_id',
+            //             as: 'productDetail.product',
+            //             pipeline: [
 
-                            {
-                                $project: {
-                                    name: 1
-                                }
-                            },
+            //                 {
+            //                     $project: {
+            //                         name: 1
+            //                     }
+            //                 },
 
-                        ]
-                    }
-                },
-                {
-                    $unwind: {
-                        path: '$productDetail.product',
-                        preserveNullAndEmptyArrays: true
-                    }
-                },
+            //             ]
+            //         }
+            //     },
+            //     {
+            //         $unwind: {
+            //             path: '$productDetail.product',
+            //             preserveNullAndEmptyArrays: true
+            //         }
+            //     },
 
-            ])
+            // ])
 
             return response.ok(res, product);
         } catch (error) {
