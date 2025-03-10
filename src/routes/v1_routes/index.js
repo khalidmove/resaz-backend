@@ -11,6 +11,7 @@ const theme = require("../../app/controller/theme");
 const { getStoreById } = require("../../app/controller/store");
 const store = require("../../app/controller/store");
 const favourite = require("../../app/controller/favourite");
+const notification = require("../../app/controller/notification");
 const { createContent, getContent, updateContent } = require("../../app/controller/ContentManagement");
 const { getFaqs, createFaq, updateFaq, deleteFaq } = require('../../app/controller/Faq');
 
@@ -44,6 +45,9 @@ router.post(
 
 router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.getProfile);
 router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.updateProfile);
+
+//notification
+router.get("/getnotification", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), notification.getnotification);
 
 
 //blogs
