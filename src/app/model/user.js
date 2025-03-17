@@ -103,6 +103,9 @@ const userSchema = new mongoose.Schema(
     },
     background_check_document:{
       type:String
+    },
+    wallet:{
+      type:Number,
     }
   },
   {

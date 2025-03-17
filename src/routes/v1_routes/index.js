@@ -5,6 +5,7 @@ const isAuthenticated = require("../../middlewares/isAuthenticated");
 const blog = require("../../app/controller/blogs");
 const category = require("../../app/controller/category");
 const product = require("../../app/controller/product");
+const withdrawreq = require("../../app/controller/withdrawreq");
 const { upload } = require("../../app/services/fileUpload");
 const setting = require("../../app/controller/setting");
 const theme = require("../../app/controller/theme");
@@ -241,6 +242,11 @@ router.post(
     isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
     product.changeorderstatus
 );
+router.post(
+    "/cashcollected",
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
+    product.cashcollected
+);
 
 router.get("/orderhistoryfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.orderhistoryfordriver);
 router.get("/orderhistoryforvendor",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.orderhistoryforvendor);
@@ -248,6 +254,14 @@ router.get("/orderhistoryforvendor",isAuthenticated(["USER", "ADMIN","DRIVER","S
 router.get(
     "/productsearch",
     product.productSearch
+);
+router.get(
+    "/getdriveramount",
+    product.getdriveramount
+);
+router.get(
+    "/getdriverpendingamount/:id",
+    product.getdriverpendingamount
 );
 
 router.post(
@@ -261,6 +275,11 @@ router.get(
     isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
     product.getrequestProductbyid
 );
+router.get(
+    "/collectcash/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
+    product.collectcash
+);
 
 router.get(
     "/getProductRequestbyUser",
@@ -272,8 +291,14 @@ router.post(
     isAuthenticated(["DRIVER"]),
     product.nearbyorderfordriver
 );
-router.get("/acceptedorderfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","VENDOR"]), product.acceptedorderfordriver);
-router.post("/acceptorderdriver/:id",isAuthenticated(["USER", "ADMIN","DRIVER","VENDOR"]), product.acceptorderdriver);
+router.get("/acceptedorderfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.acceptedorderfordriver);
+router.post("/acceptorderdriver/:id",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.acceptorderdriver);
+
+///withdrawreq
+router.post("/createWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.createWithdrawreq);
+router.get("/getWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreq);
+router.get("/getWithdrawreqbyseller",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreqbyseller);
+router.post("/updateWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.updateWithdrawreq);
 
 
 //Favourite

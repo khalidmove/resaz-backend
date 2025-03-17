@@ -63,6 +63,20 @@ const productrequestchema = new mongoose.Schema({
     location: {
         type: pointSchema,
       },
+      paymentmode:{
+        type: String,
+    },
+      cashcollected:{
+        type: String,
+        enum: ["Yes", "No",],
+      default: "No",
+    },
+      amountreceivedbyadmin:{
+        type: String,
+        enum: ["Yes", "No",],
+      default: "No",
+    },
+
 
 }, {
     timestamps: true

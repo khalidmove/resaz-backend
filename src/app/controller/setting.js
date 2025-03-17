@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Setting = mongoose.model('Setting');
+const response = require("./../responses");
 
 module.exports = {
 
@@ -29,7 +30,7 @@ module.exports = {
 
             res.status(200).json({
                 success: true,
-                message: 'Fetched all notification successfully',
+                message: 'Fetched all carosal successfully',
                 setting: notifications
             })
 
