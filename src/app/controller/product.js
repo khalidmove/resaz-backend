@@ -476,16 +476,22 @@ module.exports = {
   getOrderBySeller: async (req, res) => {
     try {
       let cond = {};
-      // if(req.body.curDate){
-      //     const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
-      //     cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
-      //   }
+      const { curDate } = req.body;
+
       if (req.user.type === "SELLER") {
         cond = {
           seller_id: req.user.id,
           status: { $in: ["Pending", "Packed"] },
         };
       }
+
+      if(curDate){
+        cond.createdAt = {
+          $gte: new Date(`${curDate}T00:00:00.000Z`),
+          $lt: new Date(`${curDate}T23:59:59.999Z`),
+        };
+      }
+
       const product = await ProductRequest.find(cond)
         .populate("user", "-password -varients")
         .populate("productDetail.product")
