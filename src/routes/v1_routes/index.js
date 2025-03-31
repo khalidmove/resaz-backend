@@ -362,5 +362,7 @@ router.delete('/deletefaq/:id',
 isAuthenticated(["USER", "ADMIN", "SELLER"]),
 deleteFaq);
 
+// Shipping Addres API
+router.get("/getShippingAddress", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getShippingAddress);
 
 module.exports = router;
