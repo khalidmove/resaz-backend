@@ -14,8 +14,8 @@ const Verification = mongoose.model("Verification");
 const Notification = mongoose.model("Notification");
 const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
-const generateUniqueId = require('generate-unique-id');
-const Setting = mongoose.model('Setting');
+const generateUniqueId = require("generate-unique-id");
+const Setting = mongoose.model("Setting");
 
 module.exports = {
   // login controller
@@ -44,9 +44,9 @@ module.exports = {
         token,
         ...user._doc,
       };
-      if (user.type === 'SELLER') {
-        let store = await Store.findOne({ userid: user._id })
-        data.store = store
+      if (user.type === "SELLER") {
+        let store = await Store.findOne({ userid: user._id });
+        data.store = store;
       }
       delete data.password;
       return response.ok(res, { ...data });
@@ -64,7 +64,7 @@ module.exports = {
         email: payload.email.toLowerCase(),
       });
       const user = await User.findOne({ number: payload.number });
-      console.log(user)
+      console.log(user);
       if (user) {
         return res.status(404).json({
           success: false,
@@ -77,15 +77,16 @@ module.exports = {
           message: "Email Id already exists.",
         });
       } else {
-        let name = payload?.username
+        let name = payload?.username;
         const id3 = generateUniqueId({
-          includeSymbols: ['@','#'],
-          length:8,
+          includeSymbols: ["@", "#"],
+          length: 8,
         });
-        let n = name.replaceAll(' ','');
-        var output =n.substring(0, 2) +id3+n.substring(n.length - 2, n.length);
-        let d= output.toUpperCase()
-        console.log(d)
+        let n = name.replaceAll(" ", "");
+        var output =
+          n.substring(0, 2) + id3 + n.substring(n.length - 2, n.length);
+        let d = output.toUpperCase();
+        console.log(d);
 
         //////////////////
         // if (payload.type === "DRIVER") {
@@ -96,24 +97,25 @@ module.exports = {
         //     });
         //   }
         // }
-      /////////////
+        /////////////
         let user = new User({
           username: payload?.username,
           email: payload?.email,
           number: payload?.number,
           referal: d,
           type: payload?.type,
-          numberPlate: payload?.numberPlate,  
-          numberPlateImg:payload?.numberPlateImg,
+          numberPlate: payload?.numberPlate,
+          numberPlateImg: payload?.numberPlateImg,
           licences: payload?.licences,
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
-        if(payload?.referal){
+        if (payload?.referal) {
           const refuser = await User.findOne({ referal: payload.referal });
           const setting = await Setting.findOne();
-          refuser.referalpoints = (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint)
-         await refuser.save();
+          refuser.referalpoints =
+            (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint);
+          await refuser.save();
         }
         // await mailNotification.welcomeMail(user)
         res.status(200).json({ success: true, data: user });
@@ -138,7 +140,7 @@ module.exports = {
   },
   me: async (req, res) => {
     try {
-      let user = userHelper.find({ _id: req.user.id }).lean()
+      let user = userHelper.find({ _id: req.user.id }).lean();
       return response.ok(res, user);
     } catch (error) {
       return response.error(res, error);
@@ -252,37 +254,36 @@ module.exports = {
       // let user = await User.find({ type: req.params.type });
       let user = await User.aggregate([
         {
-          $match: { type: "SELLER" }
+          $match: { type: "SELLER" },
         },
         {
           $lookup: {
-            from: 'stores',
-            localField: '_id',
-            foreignField: 'userid',
-            as: 'store',
-          }
+            from: "stores",
+            localField: "_id",
+            foreignField: "userid",
+            as: "store",
+          },
         },
         {
           $unwind: {
-            path: '$store',
-            preserveNullAndEmptyArrays: true
-          }
+            path: "$store",
+            preserveNullAndEmptyArrays: true,
+          },
         },
-      ])
+      ]);
       return response.ok(res, user);
     } catch (error) {
       return response.error(res, error);
     }
   },
 
-
   getDriverList: async (req, res) => {
     try {
-      const { type } = req.query;  
+      const { type } = req.query;
       if (type && type !== "DRIVER") {
         return res.status(400).json({
           success: false,
-          message: "Invalid type. Only 'DRIVER' is allowed."
+          message: "Invalid type. Only 'DRIVER' is allowed.",
         });
       }
       const drivers = await User.find({ type: "DRIVER" });
@@ -292,19 +293,18 @@ module.exports = {
     }
   },
 
-    updateStatus: async (req, res) => {
-          try {
-              const payload = req?.body || {};
-              let  driver = await User.findByIdAndUpdate(payload?.id, payload, {
-                  new: true,
-                  upsert: true,
-              });
-              return response.ok(res, driver);
-          } catch (error) {
-              return response.error(res, error);
-          }
-      },
-  
+  updateStatus: async (req, res) => {
+    try {
+      const payload = req?.body || {};
+      let driver = await User.findByIdAndUpdate(payload?.id, payload, {
+        new: true,
+        upsert: true,
+      });
+      return response.ok(res, driver);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
 
   notification: async (req, res) => {
     try {
@@ -390,7 +390,7 @@ module.exports = {
 
   getProfile: async (req, res) => {
     try {
-      const u = await User.findById(req.user.id, '-password');
+      const u = await User.findById(req.user.id, "-password");
       return response.ok(res, u);
     } catch (error) {
       return response.error(res, error);
@@ -398,7 +398,7 @@ module.exports = {
   },
   updateProfile: async (req, res) => {
     const payload = req.body;
-    const userId = req?.body?.userId || req.user.id
+    const userId = req?.body?.userId || req.user.id;
     try {
       // const data = await User.findByIdAndUpdate(userId, payload, { new: true, upsert: true })
       // return response.ok(res, data);
@@ -484,7 +484,6 @@ module.exports = {
       return response.ok(res, data);
       // }
 
-
       // }
     } catch (error) {
       return response.error(res, error);
@@ -518,7 +517,7 @@ module.exports = {
   updateGetInTouch: async (req, res) => {
     try {
       await Getintouch.findByIdAndUpdate(req.params.id, { read: true });
-      return response.ok(res, { message: 'read' });
+      return response.ok(res, { message: "read" });
     } catch (error) {
       return response.error(res, error);
     }
@@ -526,9 +525,13 @@ module.exports = {
 
   getGetInTouch: async (req, res) => {
     try {
-      let cond ={}
-      if(req.body.curDate){
-        const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
+      let cond = {};
+      if (req.body.curDate) {
+        const newEt = new Date(
+          new Date(req.body.curDate).setDate(
+            new Date(req.body.curDate).getDate() + 1
+          )
+        );
         cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
       }
       let blog = await Getintouch.find(cond).sort({ createdAt: -1 });
@@ -540,8 +543,8 @@ module.exports = {
 
   deleteGetInTouch: async (req, res) => {
     try {
-      let blog = await Getintouch.findByIdAndDelete(req.params.id)
-      return response.ok(res, { message: 'Deleted successfully' });
+      let blog = await Getintouch.findByIdAndDelete(req.params.id);
+      return response.ok(res, { message: "Deleted successfully" });
     } catch (error) {
       return response.error(res, error);
     }
@@ -576,7 +579,7 @@ module.exports = {
   DeleteNewsLetter: async (req, res) => {
     try {
       let news = await Newsletter.findByIdAndDelete(req.body.id);
-      return response.ok(res, { message: 'Deleted successfully' });
+      return response.ok(res, { message: "Deleted successfully" });
     } catch (error) {
       return response.error(res, error);
     }
@@ -608,12 +611,14 @@ module.exports = {
 
   getReview: async (req, res) => {
     try {
-      const cond = {}
+      const cond = {};
       if (req.params.id) {
-        cond.user = req.params.id
+        cond.user = req.params.id;
       }
-      const allreview = await Review.find(cond)
-        .populate("posted_by user", "-password")
+      const allreview = await Review.find(cond).populate(
+        "posted_by user",
+        "-password"
+      );
       res.status(200).json({
         success: true,
         data: allreview,
@@ -624,6 +629,35 @@ module.exports = {
         success: false,
         message: e.message,
       });
+    }
+  },
+
+  getShippingAddress: async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id || req.params.id);
+      return response.ok(res, user.shipping_address);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  updateShippingAddress: async (req, res) => {
+    try {
+      const payload = req.body;
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        { shiping_address: payload },
+        { new: true, runValidators: true }
+      );
+      if (!updatedUser) {
+        return response.error(res, { message: "User not found" });
+      }
+      return response.ok(res, {
+        message: "Shipping address updated successfully.",
+        shiping_address: updatedUser.shiping_address,
+      });
+    } catch (error) {
+      return response.error(res, error);
     }
   },
 };

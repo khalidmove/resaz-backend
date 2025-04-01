@@ -401,34 +401,47 @@ module.exports = {
       // );
       console.log("sellerOrders", sellerOrders);
 
-  const savedOrders = [];
+      const savedOrders = [];
       for (const sellerId in sellerOrders) {
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
         await newOrder.save();
         savedOrders.push(newOrder);
-    
+
         // Update sold_pieces for each product
         for (const productItem of sellerOrders[sellerId].productDetail) {
-            await Product.findByIdAndUpdate(
-                productItem.product,
-                { $inc: { sold_pieces: productItem.qty } }, // Increment sold_pieces
-                { new: true }
-            );
+          await Product.findByIdAndUpdate(
+            productItem.product,
+            { $inc: { sold_pieces: productItem.qty } }, // Increment sold_pieces
+            { new: true }
+          );
         }
-    
+
         //  Ensure the seller's wallet is updated if paymentmode is "pay"
         if (payload.paymentmode === "pay") {
-            await User.findByIdAndUpdate(
-                sellerId,
-                { $inc: { wallet: Number(sellerOrders[sellerId].total) } },
-                { new: true, upsert: true }
-            );  
+          await User.findByIdAndUpdate(
+            sellerId,
+            { $inc: { wallet: Number(sellerOrders[sellerId].total) } },
+            { new: true, upsert: true }
+          );
         }
-    }
+      }
 
       // if (payload.shiping_address) {
       //     await User.findByIdAndUpdate(req.user.id, { shiping_address: payload.shiping_address })
       // }
+
+      if (payload.shipping_address) {
+        const updatedUser = await User.findByIdAndUpdate(
+          req.user.id,
+          { shipping_address: payload.shipping_address },
+          { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+          return response.error(res, { message: "User not found" });
+        }
+      }
+
       if (payload.user && payload.pointtype === "REDEEM") {
         let userdata = await User.findById(payload.user);
         // if (payload.pointtype === "REDEEM") {
@@ -476,16 +489,22 @@ module.exports = {
   getOrderBySeller: async (req, res) => {
     try {
       let cond = {};
-      // if(req.body.curDate){
-      //     const newEt = new Date(new Date(req.body.curDate).setDate(new Date(req.body.curDate).getDate() + 1))
-      //     cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
-      //   }
+      const { curDate } = req.body;
+
       if (req.user.type === "SELLER") {
         cond = {
           seller_id: req.user.id,
           status: { $in: ["Pending", "Packed"] },
         };
       }
+
+      if (curDate) {
+        cond.createdAt = {
+          $gte: new Date(`${curDate}T00:00:00.000Z`),
+          $lt: new Date(`${curDate}T23:59:59.999Z`),
+        };
+      }
+
       const product = await ProductRequest.find(cond)
         .populate("user", "-password -varients")
         .populate("productDetail.product")
@@ -530,12 +549,11 @@ module.exports = {
 
       product.save();
 
-    await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         product.seller_id,
         { $inc: { wallet: Number(product.total) } },
         { new: true, upsert: true }
-    );
-    
+      );
 
       return response.ok(res, product);
     } catch (error) {
@@ -751,12 +769,10 @@ module.exports = {
       const products = req.body;
 
       const insertedProducts = await Product.insertMany(products);
-      return res
-        .status(201)
-        .json({
-          message: "Products uploaded successfully",
-          data: insertedProducts,
-        });
+      return res.status(201).json({
+        message: "Products uploaded successfully",
+        data: insertedProducts,
+      });
     } catch (error) {
       return res
         .status(500)
