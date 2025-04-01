@@ -697,7 +697,7 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: "Delivered",
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -708,7 +708,7 @@ module.exports = {
       const product = await ProductRequest.find({
         seller_id: req.user.id,
         status: "Delivered",
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
