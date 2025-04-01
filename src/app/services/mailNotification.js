@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 const sendMail = async (to, subject, html) => {
   return new Promise((resolve, reject) => {
     const mailConfigurations = {
-      from: `Islababa.com<${process.env.MAIL_USER}>`,
+      from: `MarketPlace<${process.env.MAIL_USER}>`,
       to,
       subject,
       html,
@@ -30,7 +30,7 @@ module.exports = {
   sendOTPmail: async ({ email, code }) => {
     console.log(email, code);
     try {
-      const html = `<div> \r\n<p>Hello,<\/p>\r\n\r\n<p> Welcome to <strong>Islababa.com</strong>. <\/p>\r\n\r\n<p>Your One-Time password  code is: <strong>${code}</strong>. This passcode will expire in 5 minutes<\/p>\r\n<\/br>Thanks,<\/p>\r\n\r\n<p><b>The Islababa.com Account Team<\/b><\/p><\/div>`;
+      const html = `<div> \r\n<p>Hello,<\/p>\r\n\r\n<p> Welcome to <strong>Marketplace</strong>. <\/p>\r\n\r\n<p>Your One-Time password  code is: <strong>${code}</strong>. This passcode will expire in 5 minutes<\/p>\r\n<\/br>Thanks,<\/p>\r\n\r\n<p><b>The Marketplace Account Team<\/b><\/p><\/div>`;
       //   const html = `<div> \r\n<p>Password Reset Instructions<\/p>\r\n\r\n<p>Your <strong>Walk Wise Meal</strong> One-Time password  code is: ${code}. Enter online when prompted. This passcode will expire in 5 minutes<\/p><\/br>Thank you for updating your password.<\/p>\r\n\r\n<p><b>SwiftGuard<\/b><\/p>\r\n<\/div>`;
       return await sendMail(email, "Password Reset Instructions", html);
     } catch (err) {

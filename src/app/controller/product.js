@@ -703,7 +703,8 @@ module.exports = {
       const product = await ProductRequest.find({ user: req.user.id })
         .populate("productDetail.product", "-varients")
         .limit(limit * 1)
-        .skip((page - 1) * limit);
+        .skip((page - 1) * limit)
+        .sort({ createdAt: -1 });
       // const product = await ProductRequest.aggregate([
       //     {
       //         $match: { user: new mongoose.Types.ObjectId(req.user.id) }

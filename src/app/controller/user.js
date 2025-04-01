@@ -161,17 +161,14 @@ module.exports = {
       if (!user) {
         return response.badReq(res, { message: "Email does exist." });
       }
-      // OTP is fixed for Now: 0000
-      // let ran_otp = Math.floor(1000 + Math.random() * 9000);
-      // await mailNotification.sendOTPmail({
-      //   code: ran_otp,
-      //   email: email
-      // });
-      let ran_otp = "0000";
-      // if (
-      //   !ver ||
-      //   new Date().getTime() > new Date(ver.expiration_at).getTime()
-      // ) {
+      let ran_otp = Math.floor(1000 + Math.random() * 9000);
+      await mailNotification.sendOTPmail({
+          code: ran_otp,
+          email: email
+        });
+        // OTP is fixed for Now: 0000
+      // let ran_otp = "0000";
+    
       let ver = new Verification({
         //email: email,
         user: user._id,
