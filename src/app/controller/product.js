@@ -393,6 +393,7 @@ module.exports = {
           image: item.image,
           qty: item.qty,
           price: item.price,
+          price_slot:item.price_slot,
         });
 
         // Calculate total price for this product
@@ -660,7 +661,7 @@ module.exports = {
             },
           },
         },
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, orders);
     } catch (err) {
       return response.error(res, err);
@@ -671,7 +672,7 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: { $ne: "Delivered" },
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
