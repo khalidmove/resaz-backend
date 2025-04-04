@@ -33,10 +33,31 @@ module.exports = {
       if (req.query.seller_id) {
         data.userid = req.query.seller_id;
       }
+
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
+
       let product = await Product.find(data)
         .populate("category")
-        .sort({ createdAt: -1 });
-      return response.ok(res, product);
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      let totalProducts = await Product.countDocuments(data); // Count total products matching the criteria
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: product,
+        pagination: {
+          totalItems: totalProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -502,15 +523,50 @@ module.exports = {
       if (curDate) {
         cond.createdAt = {
           $gte: new Date(`${curDate}T00:00:00.000Z`),
-          $lt: new Date(`${curDate}T23:59:59.999Z`),
+          $lt: new Date(`${curDate}T23:59:99.999Z`),
         };
       }
+
+      // Added to handle the date request for admin
+      if (req.body.curentDate) {
+        const newEt = new Date(
+          new Date(req.body.curentDate).setDate(
+            new Date(req.body.curentDate).getDate() + 1
+          )
+        );
+        cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
+      }
+
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
 
       const product = await ProductRequest.find(cond)
         .populate("user", "-password -varients")
         .populate("productDetail.product")
-        .sort({ createdAt: -1 });
-      return response.ok(res, product);
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedProducts = product.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalBlogs = await ProductRequest.countDocuments(cond);
+      const totalPages = Math.ceil(totalBlogs / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: indexedProducts,
+        pagination: {
+          totalItems: totalBlogs,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -698,7 +754,9 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: "Delivered",
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -709,7 +767,9 @@ module.exports = {
       const product = await ProductRequest.find({
         seller_id: req.user.id,
         status: "Delivered",
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -808,8 +868,39 @@ module.exports = {
 
   getdriveramount: async (req, res) => {
     try {
-      const product = await User.find({ wallet: { $gt: 0 }, type: "DRIVER" });
-      return response.ok(res, product);
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
+
+      const product = await User.find({ wallet: { $gt: 0 }, type: "DRIVER" })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+      const indexedProducts = product.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalProducts = await User.countDocuments({
+        wallet: { $gt: 0 },
+        type: "DRIVER",
+      });
+
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      // return response.ok(res, product);
+      return res.status(200).json({
+        status: true,
+        data: indexedProducts,
+        pagination: {
+          totalItems: totalProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }

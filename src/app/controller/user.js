@@ -165,12 +165,12 @@ module.exports = {
       }
       let ran_otp = Math.floor(1000 + Math.random() * 9000);
       await mailNotification.sendOTPmail({
-          code: ran_otp,
-          email: email
-        });
-        // OTP is fixed for Now: 0000
+        code: ran_otp,
+        email: email,
+      });
+      // OTP is fixed for Now: 0000
       // let ran_otp = "0000";
-    
+
       let ver = new Verification({
         //email: email,
         user: user._id,
@@ -251,7 +251,31 @@ module.exports = {
 
   getSellerList: async (req, res) => {
     try {
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
+
       // let user = await User.find({ type: req.params.type });
+      // let user = await User.aggregate([
+      //   {
+      //     $match: { type: "SELLER" },
+      //   },
+      //   {
+      //     $lookup: {
+      //       from: "stores",
+      //       localField: "_id",
+      //       foreignField: "userid",
+      //       as: "store",
+      //     },
+      //   },
+      //   {
+      //     $unwind: {
+      //       path: "$store",
+      //       preserveNullAndEmptyArrays: true,
+      //     },
+      //   },
+      // ])
       let user = await User.aggregate([
         {
           $match: { type: "SELLER" },
@@ -259,8 +283,16 @@ module.exports = {
         {
           $lookup: {
             from: "stores",
-            localField: "_id",
-            foreignField: "userid",
+            let: { userId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$userid", "$$userId"] }, 
+                },
+              },
+              { $sort: { createdAt: -1 } },
+              { $limit: 1 },
+            ],
             as: "store",
           },
         },
@@ -270,8 +302,29 @@ module.exports = {
             preserveNullAndEmptyArrays: true,
           },
         },
-      ]);
-      return response.ok(res, user);
+      ])
+        .skip(skip)
+        .limit(limit);
+
+      const indexedUser = user.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalUsers = await User.countDocuments({ type: "SELLER" }); // Get the total number of users
+      const totalPages = Math.ceil(totalUsers / limit); // Calculate total pages
+
+      // return response.ok(res, user);
+      return res.status(200).json({
+        status: true,
+        data: indexedUser,
+        pagination: {
+          totalItems: totalUsers,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -286,8 +339,36 @@ module.exports = {
           message: "Invalid type. Only 'DRIVER' is allowed.",
         });
       }
-      const drivers = await User.find({ type: "DRIVER" });
-      return response.ok(res, drivers);
+
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
+
+      const drivers = await User.find({ type: "DRIVER" })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedDrivers = drivers.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalDrivers = await User.countDocuments({ type: "DRIVER" }); // Get the total number of drivers
+      const totalPages = Math.ceil(totalDrivers / limit); // Calculate total pages
+
+      // return response.ok(res, drivers);
+      return res.status(200).json({
+        status: true,
+        data: indexedDrivers,
+        pagination: {
+          totalItems: totalDrivers,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -534,8 +615,36 @@ module.exports = {
         );
         cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
       }
-      let blog = await Getintouch.find(cond).sort({ createdAt: -1 });
-      return response.ok(res, blog);
+
+      // Pagination
+      let page = parseInt(req.query.page) || 1; // For example, page 1
+      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
+      let skip = (page - 1) * limit; // Calculate the number of items to skip
+
+      let blog = await Getintouch.find(cond)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedBlog = blog.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalBlogs = await Getintouch.countDocuments(cond); // Get the total number of blogs
+      const totalPages = Math.ceil(totalBlogs / limit); // Calculate total pages
+
+      // return response.ok(res, blog);
+      return res.status(200).json({
+        status: true,
+        data: indexedBlog,
+        pagination: {
+          totalItems: totalBlogs,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -560,7 +669,7 @@ module.exports = {
       } else {
         let news = new Newsletter(payload);
         const newsl = await news.save();
-        return response.ok(res, { message: "Subscried successfully" });
+        return response.ok(res, { message: "Subscribed successfully" });
       }
     } catch (error) {
       return response.error(res, error);
