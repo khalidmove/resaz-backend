@@ -173,7 +173,7 @@ module.exports = {
   getProductBycategoryId: async (req, res) => {
     console.log(req.query);
     try {
-      let cond = {};
+      let cond = {status: "verified"};
       if (req?.query?.category && req?.query?.category !== "all") {
         const cat = await Category.findOne({ slug: req?.query?.category });
         cond.category = cat._id;
@@ -182,9 +182,9 @@ module.exports = {
         cond._id = { $ne: req?.query?.product_id };
       }
       let sort_by = {};
-      if (req.query.is_top) {
-        cond.is_top = true;
-      }
+      // if (req.query.is_top) {
+      //   cond.is_top = true;
+      // }
       if (req.query.is_new) {
         cond.is_new = true;
       }
@@ -195,46 +195,45 @@ module.exports = {
           $elemMatch: { color: { $in: req.query.colors } },
         };
       }
-
-      if (req.query.sort_by) {
+      if (
+        req.query.sort_by &&
+        !["low", "high"].includes(req.query.sort_by)
+      ) {
         if (req.query.sort_by === "featured" || req.query.sort_by === "new") {
           sort_by.createdAt = -1;
-        }
-
-        if (req.query.sort_by === "old") {
+        } else if (req.query.sort_by === "old") {
           sort_by.createdAt = 1;
-        }
-
-        if (req.query.sort_by === "a_z") {
+        } else if (req.query.sort_by === "a_z") {
           sort_by.name = 1;
-        }
-
-        if (req.query.sort_by === "z_a") {
+        } else if (req.query.sort_by === "z_a") {
           sort_by.name = -1;
-        }
-
-        if (req.query.sort_by === "low") {
-          sort_by.price = 1;
-        }
-
-        if (req.query.sort_by === "high") {
-          sort_by.price = -1;
+        } else if (req.query.sort_by === "is_top") {
+          sort_by.sold_pieces = -1;
         }
       } else {
         sort_by.createdAt = -1;
       }
-      console.log(cond);
-      let product;
+      let productQuery = Product.find(cond).populate("category").sort(sort_by);
       if (req?.query?.product_id) {
-        product = await Product.find(cond)
-          .populate("category")
-          .sort(sort_by)
-          .limit(4);
-      } else {
-        product = await Product.find(cond).populate("category").sort(sort_by);
+        productQuery = productQuery.limit(4);
+      }
+  
+      let products = await productQuery.exec();
+      if (req.query.sort_by === "low") {
+        products = products.sort((a, b) => {
+          const aPrice = parseFloat(a.price_slot?.[0]?.our_price) || 0;
+          const bPrice = parseFloat(b.price_slot?.[0]?.our_price) || 0;
+          return aPrice - bPrice;
+        });
+      } else if (req.query.sort_by === "high") {
+        products = products.sort((a, b) => {
+          const aPrice = parseFloat(a.price_slot?.[0]?.our_price) || 0;
+          const bPrice = parseFloat(b.price_slot?.[0]?.our_price) || 0;
+          return bPrice - aPrice;
+        });
       }
 
-      return response.ok(res, product);
+      return response.ok(res, products);
     } catch (error) {
       return response.error(res, error);
     }
@@ -874,9 +873,9 @@ module.exports = {
       let skip = (page - 1) * limit; // Calculate the number of items to skip
 
       const product = await User.find({ wallet: { $gt: 0 }, type: "DRIVER" })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
       const indexedProducts = product.map((item, index) => ({
         ...(item.toObject?.() || item),
