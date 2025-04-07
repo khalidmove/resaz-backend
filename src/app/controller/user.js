@@ -252,30 +252,10 @@ module.exports = {
   getSellerList: async (req, res) => {
     try {
       // Pagination
-      let page = parseInt(req.query.page) || 1; // For example, page 1
-      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
-      let skip = (page - 1) * limit; // Calculate the number of items to skip
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10; 
+      let skip = (page - 1) * limit; 
 
-      // let user = await User.find({ type: req.params.type });
-      // let user = await User.aggregate([
-      //   {
-      //     $match: { type: "SELLER" },
-      //   },
-      //   {
-      //     $lookup: {
-      //       from: "stores",
-      //       localField: "_id",
-      //       foreignField: "userid",
-      //       as: "store",
-      //     },
-      //   },
-      //   {
-      //     $unwind: {
-      //       path: "$store",
-      //       preserveNullAndEmptyArrays: true,
-      //     },
-      //   },
-      // ])
       let user = await User.aggregate([
         {
           $match: { type: "SELLER" },
@@ -311,8 +291,8 @@ module.exports = {
         indexNo: skip + index + 1,
       }));
 
-      const totalUsers = await User.countDocuments({ type: "SELLER" }); // Get the total number of users
-      const totalPages = Math.ceil(totalUsers / limit); // Calculate total pages
+      const totalUsers = await User.countDocuments({ type: "SELLER" });
+      const totalPages = Math.ceil(totalUsers / limit);
 
       // return response.ok(res, user);
       return res.status(200).json({
@@ -743,12 +723,18 @@ module.exports = {
 
   getShippingAddress: async (req, res) => {
     try {
-      const user = await User.findById(req.user.id || req.params.id);
+      const userId = req.user?.id || req.params.id;
+      const user = await User.findById(userId);
+  
+      if (!user) {
+        return response.notFound(res, "User not found");
+      }
+  
       return response.ok(res, user.shipping_address);
     } catch (error) {
       return response.error(res, error);
     }
-  },
+  },  
 
   updateShippingAddress: async (req, res) => {
     try {

@@ -5,8 +5,6 @@ const mailNotification = require("../services/mailNotification");
 // const User = mongoose.model("User");
 const User = require("../model/user");
 
-
-
 module.exports = {
 
     createStore: async (req, res) => {
@@ -63,7 +61,11 @@ module.exports = {
     updateStore: async (req, res) => {
         try {
             const payload = req?.body || {};
-            let product = await Store.findByIdAndUpdate(payload?.id, payload, {
+            // let product = await Store.findByIdAndUpdate(payload?.id, payload, {
+            //     new: true,
+            //     upsert: true,
+            // });
+            let product = await User.findByIdAndUpdate(payload?.id, payload, {
                 new: true,
                 upsert: true,
             });
