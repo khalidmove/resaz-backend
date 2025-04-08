@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Product = mongoose.model("Product");
 const ProductRequest = mongoose.model("ProductRequest");
 const User = mongoose.model("User");
+const Tax = mongoose.model("Tax");
 const response = require("./../responses");
 const mailNotification = require("../services/mailNotification");
 const { getReview } = require("../helper/user");
@@ -173,72 +174,85 @@ module.exports = {
   getProductBycategoryId: async (req, res) => {
     console.log(req.query);
     try {
-      let cond = {status: "verified"};
+      let cond = { status: "verified" };
+  
+      // Filter by category
       if (req?.query?.category && req?.query?.category !== "all") {
-        const cat = await Category.findOne({ slug: req?.query?.category });
-        cond.category = cat._id;
+        const cat = await Category.findOne({ slug: req?.query?.category }).lean();
+        if (cat) cond.category = cat._id;
       }
+  
+      // Exclude specific product
       if (req?.query?.product_id) {
         cond._id = { $ne: req?.query?.product_id };
       }
-      let sort_by = {};
-      // if (req.query.is_top) {
-      //   cond.is_top = true;
-      // }
+  
+      // Filter by new
       if (req.query.is_new) {
         cond.is_new = true;
       }
-
+  
+      // Filter by colors
       if (req.query.colors && req.query.colors.length > 0) {
         cond.varients = {
           $ne: [],
           $elemMatch: { color: { $in: req.query.colors } },
         };
       }
-      if (
-        req.query.sort_by &&
-        !["low", "high"].includes(req.query.sort_by)
-      ) {
-        if (req.query.sort_by === "featured" || req.query.sort_by === "new") {
-          sort_by.createdAt = -1;
-        } else if (req.query.sort_by === "old") {
-          sort_by.createdAt = 1;
-        } else if (req.query.sort_by === "a_z") {
-          sort_by.name = 1;
-        } else if (req.query.sort_by === "z_a") {
-          sort_by.name = -1;
-        } else if (req.query.sort_by === "is_top") {
-          sort_by.sold_pieces = -1;
-        }
-      } else {
-        sort_by.createdAt = -1;
-      }
-      let productQuery = Product.find(cond).populate("category").sort(sort_by);
-      if (req?.query?.product_id) {
-        productQuery = productQuery.limit(4);
-      }
   
-      let products = await productQuery.exec();
-      if (req.query.sort_by === "low") {
+      // Pagination config
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 12;
+      const skip = (page - 1) * limit;
+  
+      // Fetch all matching products first
+      let products = await Product.find(cond).populate("category").lean();
+  
+      // Manual sort
+      const sortBy = req.query.sort_by;
+      if (sortBy === "low") {
         products = products.sort((a, b) => {
           const aPrice = parseFloat(a.price_slot?.[0]?.our_price) || 0;
           const bPrice = parseFloat(b.price_slot?.[0]?.our_price) || 0;
           return aPrice - bPrice;
         });
-      } else if (req.query.sort_by === "high") {
+      } else if (sortBy === "high") {
         products = products.sort((a, b) => {
           const aPrice = parseFloat(a.price_slot?.[0]?.our_price) || 0;
           const bPrice = parseFloat(b.price_slot?.[0]?.our_price) || 0;
           return bPrice - aPrice;
         });
+      } else if (sortBy === "a_z") {
+        products = products.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortBy === "z_a") {
+        products = products.sort((a, b) => b.name.localeCompare(a.name));
+      } else if (sortBy === "old") {
+        products = products.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      } else {
+        // Default or "new", "featured", "is_top"
+        products = products.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       }
-
-      return response.ok(res, products);
+  
+      // Slice products for pagination after sorting
+      const totalProducts = products.length;
+      const totalPages = Math.ceil(totalProducts / limit);
+      const paginatedProducts = products.slice(skip, skip + limit);
+  
+      return res.status(200).json({
+        status: true,
+        data: paginatedProducts,
+        pagination: {
+          totalItems: totalProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
-  },
-
+  },  
+  
   getProductBythemeId: async (req, res) => {
     console.log(req.query);
     try {
@@ -424,6 +438,15 @@ module.exports = {
 
       const savedOrders = [];
       for (const sellerId in sellerOrders) {
+        // Calculate tax before saving
+        const taxData = await Tax.findOne(); // global tax or adjust per seller
+        const taxRate = taxData?.taxRate || 0;
+        const baseTotal = sellerOrders[sellerId].total;
+        const taxAmount = (baseTotal * taxRate) / 100;
+
+        sellerOrders[sellerId].tax = taxAmount;
+        sellerOrders[sellerId].total = baseTotal + taxAmount;
+
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
         await newOrder.save();
         savedOrders.push(newOrder);
@@ -454,7 +477,10 @@ module.exports = {
       if (payload.shipping_address) {
         const updatedUser = await User.findByIdAndUpdate(
           req.user.id,
-          { shipping_address: payload.shipping_address },
+          {
+            shipping_address: payload.shipping_address,
+            location: payload.location,
+          },
           { new: true, runValidators: true }
         );
 

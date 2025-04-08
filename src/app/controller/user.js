@@ -15,6 +15,7 @@ const Notification = mongoose.model("Notification");
 const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
 const generateUniqueId = require("generate-unique-id");
+const Tax = require("../model/tax");
 const Setting = mongoose.model("Setting");
 
 module.exports = {
@@ -253,8 +254,8 @@ module.exports = {
     try {
       // Pagination
       let page = parseInt(req.query.page) || 1;
-      let limit = parseInt(req.query.limit) || 10; 
-      let skip = (page - 1) * limit; 
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
 
       let user = await User.aggregate([
         {
@@ -267,7 +268,7 @@ module.exports = {
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ["$userid", "$$userId"] }, 
+                  $expr: { $eq: ["$userid", "$$userId"] },
                 },
               },
               { $sort: { createdAt: -1 } },
@@ -725,16 +726,16 @@ module.exports = {
     try {
       const userId = req.user?.id || req.params.id;
       const user = await User.findById(userId);
-  
+
       if (!user) {
         return response.notFound(res, "User not found");
       }
-  
+
       return response.ok(res, user.shipping_address);
     } catch (error) {
       return response.error(res, error);
     }
-  },  
+  },
 
   updateShippingAddress: async (req, res) => {
     try {
@@ -755,4 +756,72 @@ module.exports = {
       return response.error(res, error);
     }
   },
+
+  // tax controller
+  getTax: async (req, res) => {
+    try {
+      const taxes = await Tax.find();
+      if (!taxes || taxes?.length === 0) {
+        return response.notFound(res, { message: "No tax found" });
+      }
+      return response.ok(res, taxes);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  addOrUpdateTax: async (req, res) => {
+    try {
+      const payload = req.body;
+
+      const updatedTax = await Tax.findOneAndUpdate(
+        // { userId: payload.userId },
+        {},
+        payload,
+        { new: true, upsert: true, runValidators: true }
+      );
+
+      return response.ok(res, {
+        message: "Tax updated successfully.",
+        // message: updatedTax ? "Tax updated successfully." : "Tax added successfully.",
+        data: updatedTax,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  // createTax: async (req, res) => {
+  //   try {
+  //     const payload = req.body;
+
+  //     const existingTax = await Tax.findOne({ userId: payload.userId, taxRate: payload.taxRate });
+  //     if (existingTax) {
+  //       return response.conflict(res, { message: "Tax already exists" });
+  //     }
+
+  //     const newTax = new Tax(payload);
+  //     await newTax.save();
+  //     return response.ok(res, { message: "Tax added successfully" });
+  //   } catch (error) {
+  //     return response.error(res, error);
+  //   }
+  // },
+
+  // updateTax: async (req, res) => {
+  //   try {
+  //     const payload = req.body;
+  //     const updatedTax = await Tax.findByIdAndUpdate(req.params.id, payload, {
+  //       new: true,
+  //       runValidators: true,
+  //     });
+
+  //     if (!updatedTax) {
+  //       return response.notFound(res, { message: "Tax not found" });
+  //     }
+
+  //     return response.ok(res, { message: "Tax updated successfully", data: updatedTax });
+  //   } catch (error) {
+  //     return response.error(res, error);
+  //   }
+  // }
 };

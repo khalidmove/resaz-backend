@@ -365,4 +365,9 @@ deleteFaq);
 // Shipping Addres API
 router.get("/getShippingAddress", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getShippingAddress);
 
+// Tax calculation API
+router.post("/addOrUpdateTax", isAuthenticated(["ADMIN", "SELLER"]), user.addOrUpdateTax);
+router.get("/getTax", user.getTax);
+// router.post("/updateTax", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.updateTax);
+
 module.exports = router;

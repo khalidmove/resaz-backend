@@ -66,6 +66,10 @@ const productrequestchema = new mongoose.Schema(
     shipping_address: {
       type: Object,
     },
+    tax: {
+        type: Number,
+        default: 0
+    },
     total: {
       type: Number,
     },
