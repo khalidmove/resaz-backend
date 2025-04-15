@@ -855,6 +855,7 @@ module.exports = {
 
       const insertedProducts = await Product.insertMany(products);
       return res.status(201).json({
+        status: true,
         message: "Products uploaded successfully",
         data: insertedProducts,
       });
