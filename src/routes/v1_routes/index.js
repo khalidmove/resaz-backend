@@ -26,7 +26,7 @@ router.post(
     upload.single("file"),
     user.fileUpload
 );
-router.get("/getuserlist/:type", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getUserList);
+router.get("/getuserlist/:type", user.getUserList);
 router.get("/getDriverList/:type", isAuthenticated(["USER", "ADMIN", "SELLER", "DRIVER"]), user.getDriverList);
 router.post("/updateStatus", isAuthenticated(["ADMIN", "DRIVER"]), user.updateStatus);
 router.get("/getSellerList", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getSellerList);
@@ -34,6 +34,14 @@ router.post("/getInTouch", user.createGetInTouch);
 router.get("/getInTouch/:id", user.updateGetInTouch);
 router.post("/get-getInTouch", user.getGetInTouch);
 router.delete("/user/delgetintouch/:id", user.deleteGetInTouch);
+
+// Update admin details
+router.patch(
+    "/updateAdminDetails/:id",
+    isAuthenticated(["ADMIN"]),
+    user.updateAdminDetails
+);
+router.get("/confirm-update",  user.confirmUpdate);
 
 router.post("/add-subscriber", user.addNewsLetter);
 router.get("/get-subscriber", user.getNewsLetter);

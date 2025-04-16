@@ -17,6 +17,7 @@ const { v4: uuidv4 } = require("uuid");
 const generateUniqueId = require("generate-unique-id");
 const Tax = require("../model/tax");
 const Setting = mongoose.model("Setting");
+const jwt = require("jsonwebtoken");
 
 module.exports = {
   // login controller
@@ -156,6 +157,77 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  updateAdminDetails: async (req, res) => {
+    try {
+      const payload = req.body;
+      const userId = req.params.id;
+      const user = await User.findById(userId);
+  
+      if (!user) return response.error(res, "User not found");
+  
+      const changes = {};
+      const pendingChanges = {};
+  
+      if (payload.email && payload.email !== user.email) {
+        pendingChanges.email = payload.email;
+      }
+  
+      if (payload.password) {
+        pendingChanges.password = payload.password; // ideally hash later
+      }
+  
+      if (Object.keys(pendingChanges).length > 0) {
+        // create secure token with the new data and user ID
+        const token = jwt.sign(
+          { userId, changes: pendingChanges },
+          process.env.SECRET,
+          { expiresIn: "15m" }
+        );
+  
+        const confirmUrl = `${process.env.APP_URL}/confirm-update?token=${token}`;
+  
+        // await sendEmail({
+        //   to: user.email, // current email
+        //   subject: "Confirm your admin profile update",
+        //   html: `<p>Please confirm your update by clicking the link below:</p>
+        //          <a href="${confirmUrl}">Confirm Update</a>`,
+        // });
+
+        await mailNotification.updateMail({
+          email: user.email,
+          confirmUrl,
+        });
+  
+        return response.ok(res, {
+          message: "Confirmation email sent. Please verify to complete the update.",
+        });
+      }
+  
+      await User.findByIdAndUpdate(userId, payload, { new: true });
+      return response.ok(res, { message: "Details updated." });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  confirmUpdate: async (req, res) => {
+    try {
+      const { token } = req.query;
+  
+      const decoded = jwt.verify(token, process.env.SECRET);
+      const { userId, changes } = decoded;
+  
+      if (changes.password) {
+        const bcrypt = require("bcryptjs");
+        changes.password = await bcrypt.hash(changes.password, 10);
+      }
+  
+      await User.findByIdAndUpdate(userId, changes, { new: true });
+  
+      return response.ok(res, { message: "Update confirmed and applied." });
+    } catch (err) {
+      return response.error(res, "Invalid or expired token.");
+    }
+  },  
   sendOTP: async (req, res) => {
     try {
       const email = req.body.email;
@@ -241,18 +313,123 @@ module.exports = {
     }
   },
 
+  // getUserList: async (req, res) => {
+  //   try {
+  //     const page = parseInt(req.query.page) || 1;
+  //     const limit = parseInt(req.query.limit) || 10;
+  //     const skip = (page - 1) * limit;
+
+  //     const typeParam = req.params.type;
+  //     let typeFilter = {};
+
+  //     if (typeParam === "all") {
+  //       typeFilter.type = { $in: ["USER", "SELLER"] };
+  //     } else if (typeParam === "users") {
+  //       typeFilter.type = { $ne: "USER" }; // assuming "USER" is not a customer
+  //     } else if (typeParam === "sellers") {
+  //       typeFilter.type = { $ne: "SELLER" }; // assuming "SELLER" is not a seller
+  //     } else {
+  //       typeFilter.type = typeParam; // specific type
+  //     }
+
+  //     const users = await User.find(typeFilter)
+  //       .sort({ createdAt: -1 })
+  //       .skip(skip)
+  //       .limit(limit);
+
+  //     const indexedUser = users.map((item, index) => ({
+  //       ...(item.toObject?.() || item),
+  //       indexNo: skip + index + 1,
+  //     }));
+
+  //     const totalUsers = await User.countDocuments(typeFilter);
+  //     const totalPages = Math.ceil(totalUsers / limit);
+
+  //     return res.status(200).json({
+  //       status: true,
+  //       data: indexedUser,
+  //       pagination: {
+  //         totalItems: totalUsers,
+  //         totalPages: totalPages,
+  //         currentPage: page,
+  //         itemsPerPage: limit,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Error fetching user list:", error);
+  //     return res.status(500).json({
+  //       status: false,
+  //       message: "Internal Server Error",
+  //       error: error.message,
+  //     });
+  //   }
+  // },
+
   getUserList: async (req, res) => {
     try {
-      let user = await User.find({ type: req.params.type });
-      return response.ok(res, user);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      const returnAllIds = req.query.all === "true";
+
+      const typeParam = req.params.type;
+      let typeFilter = {};
+
+      if (typeParam === "all") {
+        typeFilter.type = { $in: ["USER", "SELLER", "DRIVER"] };
+      } else if (typeParam === "users") {
+        typeFilter.type = { $ne: "USER" };
+      } else if (typeParam === "sellers") {
+        typeFilter.type = { $ne: "SELLER" };
+      } else if (typeParam === "drivers") {
+        typeFilter.type = { $ne: "DRIVER" };
+      } else {
+        typeFilter.type = typeParam;
+      }
+
+      if (returnAllIds) {
+        const allUsers = await User.find(typeFilter).select("_id");
+        return res.status(200).json({
+          status: true,
+          allUserIds: allUsers.map((u) => u._id),
+        });
+      }
+
+      const users = await User.find(typeFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedUser = users.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalUsers = await User.countDocuments(typeFilter);
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: indexedUser,
+        pagination: {
+          totalItems: totalUsers,
+          totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
-      return response.error(res, error);
+      console.error("Error fetching user list:", error);
+      return res.status(500).json({
+        status: false,
+        message: "Internal Server Error",
+        error: error.message,
+      });
     }
   },
 
   getSellerList: async (req, res) => {
     try {
-      // Pagination
       let page = parseInt(req.query.page) || 1;
       let limit = parseInt(req.query.limit) || 10;
       let skip = (page - 1) * limit;
@@ -321,7 +498,6 @@ module.exports = {
         });
       }
 
-      // Pagination
       let page = parseInt(req.query.page) || 1; // For example, page 1
       let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
       let skip = (page - 1) * limit; // Calculate the number of items to skip
@@ -597,7 +773,6 @@ module.exports = {
         cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
       }
 
-      // Pagination
       let page = parseInt(req.query.page) || 1; // For example, page 1
       let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
       let skip = (page - 1) * limit; // Calculate the number of items to skip
