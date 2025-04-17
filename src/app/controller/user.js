@@ -162,20 +162,20 @@ module.exports = {
       const payload = req.body;
       const userId = req.params.id;
       const user = await User.findById(userId);
-  
+
       if (!user) return response.error(res, "User not found");
-  
+
       const changes = {};
       const pendingChanges = {};
-  
+
       if (payload.email && payload.email !== user.email) {
         pendingChanges.email = payload.email;
       }
-  
+
       if (payload.password) {
         pendingChanges.password = payload.password; // ideally hash later
       }
-  
+
       if (Object.keys(pendingChanges).length > 0) {
         // create secure token with the new data and user ID
         const token = jwt.sign(
@@ -183,9 +183,9 @@ module.exports = {
           process.env.SECRET,
           { expiresIn: "15m" }
         );
-  
+
         const confirmUrl = `${process.env.APP_URL}/confirm-update?token=${token}`;
-  
+
         // await sendEmail({
         //   to: user.email, // current email
         //   subject: "Confirm your admin profile update",
@@ -197,12 +197,13 @@ module.exports = {
           email: user.email,
           confirmUrl,
         });
-  
+
         return response.ok(res, {
-          message: "Confirmation email sent. Please verify to complete the update.",
+          message:
+            "Confirmation email sent. Please verify to complete the update.",
         });
       }
-  
+
       await User.findByIdAndUpdate(userId, payload, { new: true });
       return response.ok(res, { message: "Details updated." });
     } catch (error) {
@@ -212,22 +213,22 @@ module.exports = {
   confirmUpdate: async (req, res) => {
     try {
       const { token } = req.query;
-  
+
       const decoded = jwt.verify(token, process.env.SECRET);
       const { userId, changes } = decoded;
-  
+
       if (changes.password) {
         const bcrypt = require("bcryptjs");
         changes.password = await bcrypt.hash(changes.password, 10);
       }
-  
+
       await User.findByIdAndUpdate(userId, changes, { new: true });
-  
+
       return response.ok(res, { message: "Update confirmed and applied." });
     } catch (err) {
       return response.error(res, "Invalid or expired token.");
     }
-  },  
+  },
   sendOTP: async (req, res) => {
     try {
       const email = req.body.email;
@@ -373,16 +374,17 @@ module.exports = {
       const returnAllIds = req.query.all === "true";
 
       const typeParam = req.params.type;
+      console.log("User type:", typeParam);
       let typeFilter = {};
 
       if (typeParam === "all") {
         typeFilter.type = { $in: ["USER", "SELLER", "DRIVER"] };
       } else if (typeParam === "users") {
-        typeFilter.type = { $ne: "USER" };
+        typeFilter.type = "USER";
       } else if (typeParam === "sellers") {
-        typeFilter.type = { $ne: "SELLER" };
+        typeFilter.type = "SELLER";
       } else if (typeParam === "drivers") {
-        typeFilter.type = { $ne: "DRIVER" };
+        typeFilter.type = "DRIVER";
       } else {
         typeFilter.type = typeParam;
       }
@@ -965,38 +967,169 @@ module.exports = {
     }
   },
 
-  // createTax: async (req, res) => {
-  //   try {
-  //     const payload = req.body;
+  // Employee creation by vendor
+  createEmployee: async (req, res) => {
+    try {
+      const payload = req.body;
+      const vendorId = req.user.id;
+      const user = await User.findById(vendorId);
+      if (!user) {
+        return response.notFound(res, { message: "Vendor not found" });
+      }
+      const existingEmployee = await User.findOne({
+        email: payload.email,
+        type: "EMPLOYEE",
+      });
 
-  //     const existingTax = await Tax.findOne({ userId: payload.userId, taxRate: payload.taxRate });
-  //     if (existingTax) {
-  //       return response.conflict(res, { message: "Tax already exists" });
-  //     }
+      if (existingEmployee) {
+        return response.conflict(res, { message: "Employee already exists" });
+      }
 
-  //     const newTax = new Tax(payload);
-  //     await newTax.save();
-  //     return response.ok(res, { message: "Tax added successfully" });
-  //   } catch (error) {
-  //     return response.error(res, error);
-  //   }
-  // },
+      const employee = new User({
+        ...payload,
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      });
 
-  // updateTax: async (req, res) => {
-  //   try {
-  //     const payload = req.body;
-  //     const updatedTax = await Tax.findByIdAndUpdate(req.params.id, payload, {
-  //       new: true,
-  //       runValidators: true,
-  //     });
+      employee.password = employee.encryptPassword(payload.password);
+      await employee.save();
+      return response.ok(res, { message: "Employee created successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
 
-  //     if (!updatedTax) {
-  //       return response.notFound(res, { message: "Tax not found" });
-  //     }
+  getEmployeeList: async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
 
-  //     return response.ok(res, { message: "Tax updated successfully", data: updatedTax });
-  //   } catch (error) {
-  //     return response.error(res, error);
-  //   }
-  // }
+      const vendorId = req.user.id;
+      const employees = await User.find({
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      })
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedEmployees = employees.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalEmployees = await User.countDocuments({
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      });
+
+      const totalPages = Math.ceil(totalEmployees / limit);
+      return res.status(200).json({
+        status: true,
+        data: indexedEmployees,
+        pagination: {
+          totalItems: totalEmployees,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+      // return response.ok(res, employees);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  updateEmployee: async (req, res) => {
+    try {
+      const payload = req.body;
+      const employeeId = req.body.id;
+      const updatedEmployee = await User.findByIdAndUpdate(
+        employeeId,
+        payload,
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedEmployee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+
+      return response.ok(res, { message: "Employee updated successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  deleteEmployee: async (req, res) => {
+    try {
+      const employeeId = req.params.id;
+      const vendorId = req.user.id;
+  
+      const employee = await User.findById(employeeId);
+  
+      if (!employee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+  
+      if (!employee.parent_vendor_id || employee.parent_vendor_id.toString() !== vendorId) {
+        return response.forbidden(res, { message: "Unauthorized" });
+      }
+  
+      await employee.deleteOne();
+  
+      return response.ok(res, { message: "Employee deleted successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  
+  getEmployeeById: async (req, res) => {
+    try {
+      const employeeId = req.params.id;
+      const employee = await User.findById(employeeId).select("-password");
+
+      if (!employee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+
+      return response.ok(res, employee);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  loginEmployee: async (req, res) => {
+    passport.authenticate("local", async (err, user, info) => {
+      if (err) {
+        return response.error(res, err);
+      }
+      if (!user) {
+        return response.unAuthorize(res, info);
+      }
+      let token = await new jwtService().createJwtToken({
+        id: user._id,
+        // user: user.fullName,
+        type: user.type,
+        tokenVersion: new Date(),
+      });
+      await Device.updateOne(
+        { device_token: req.body.device_token },
+        { $set: { player_id: req.body.player_id, user: user._id } },
+        { upsert: true }
+      );
+      await user.save();
+      let data = {
+        token,
+        ...user._doc,
+      };
+      // if (user.type === "SELLER") {
+      //   let store = await Store.findOne({ userid: user._id });
+      //   data.store = store;
+      // }
+      delete data.password;
+      return response.ok(res, { ...data });
+    })(req, res);
+  },
 };

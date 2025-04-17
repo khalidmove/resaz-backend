@@ -378,4 +378,11 @@ router.post("/addOrUpdateTax", isAuthenticated(["ADMIN", "SELLER"]), user.addOrU
 router.get("/getTax", user.getTax);
 // router.post("/updateTax", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.updateTax);
 
+// Employee API
+router.post("/createEmployee", isAuthenticated(["SELLER"]), user.createEmployee);
+router.get("/getEmployee", isAuthenticated(["SELLER"]), user.getEmployeeList);
+router.post("/updateEmployee", isAuthenticated(["SELLER"]), user.updateEmployee);
+router.delete("/deleteEmployee/:id", isAuthenticated(["SELLER"]), user.deleteEmployee);
+router.get("/getEmployeeById/:id", isAuthenticated(["SELLER"]), user.getEmployeeById);
+
 module.exports = router;
