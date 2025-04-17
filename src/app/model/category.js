@@ -18,6 +18,10 @@ const categorySchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    is_refundable: {
+        type: Boolean,
+        default: true
+    },
     attributes: [
         {
             name: { type: String },

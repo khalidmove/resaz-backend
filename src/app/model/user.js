@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema(
     number: {
       type: String,
       unique: true,
+      sparse: true,
     },
     location: {
       type: pointSchema,
@@ -39,6 +40,7 @@ const userSchema = new mongoose.Schema(
     referal: {
       type: String,
       unique: true,
+      sparse: true,
     },
     referalpoints: {
       type: Number,
@@ -52,7 +54,7 @@ const userSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["USER", "ADMIN", "SELLER", "DRIVER"],
+      enum: ["USER", "ADMIN", "SELLER", "DRIVER", "EMPLOYEE"],
       default: "USER",
     },
     status: {
@@ -106,7 +108,11 @@ const userSchema = new mongoose.Schema(
     },
     wallet:{
       type:Number,
-    }
+    },
+    parent_vendor_id:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"User"
+    },
   },
   {
     timestamps: true,
