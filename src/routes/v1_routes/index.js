@@ -46,6 +46,14 @@ router.post(
 
 router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.getProfile);
 router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.updateProfile);
+router.post(
+    "/updateUserLocation",
+    isAuthenticated(["USER", "DRIVER", "ADMIN"]),
+    user.driverupdatelocation
+  );
+  router.get(
+    "/getdriverlocation/:id", user.getdriverlocation
+  );
 
 //notification
 router.get("/getnotification", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), notification.getnotification);
@@ -241,6 +249,11 @@ router.post(
     "/changeorderstatus",
     isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
     product.changeorderstatus
+);
+router.get(
+    "/onthewaytodelivery/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
+    product.onthewaytodelivery
 );
 router.post(
     "/cashcollected",

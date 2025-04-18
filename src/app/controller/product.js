@@ -638,6 +638,7 @@ module.exports = {
         );
       }
       if (req.body.status === "Delivered") {
+        product.onthewaytodelivery = false;
         await notify(
           product.user,
           "Order delivered",
@@ -651,6 +652,17 @@ module.exports = {
           "Order collected by driver"
         );
       }
+
+      product.save();
+      return response.ok(res, product);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  onthewaytodelivery: async (req, res) => {
+    try {
+      const product = await ProductRequest.findById(req.params.id);
+      product.onthewaytodelivery = true;
 
       product.save();
       return response.ok(res, product);
