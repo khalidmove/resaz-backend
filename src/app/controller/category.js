@@ -39,7 +39,9 @@ module.exports = {
               let n4 = n2+id3+n3
               let d= n4.toUpperCase()
               console.log(d)
-            let category = await Category.find();
+              const { page = 1, limit } = req.query;
+            let category = await Category.find().limit(limit * 1)
+            .skip((page - 1) * limit);
             return response.ok(res, category);
         } catch (error) {
             return response.error(res, error);

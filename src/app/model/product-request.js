@@ -38,6 +38,12 @@ const productrequestchema = new mongoose.Schema(
         price: {
           type: Number,
         },
+        price_slot: {
+          value: {type:Number},
+          unit: {type:String},
+          our_price: {type:Number},
+          other_price: {type:Number},
+        },
       },
     ],
     user: {
@@ -56,6 +62,10 @@ const productrequestchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    onthewaytodelivery: {
+      type: Boolean,
+      default:false
+    },
     shipping_address: {
       type: Object,
     },
@@ -70,6 +80,9 @@ const productrequestchema = new mongoose.Schema(
       type: pointSchema,
     },
     paymentmode: {
+      type: String,
+    },
+    timeslot: {
       type: String,
     },
     cashcollected: {

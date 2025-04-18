@@ -37,6 +37,9 @@ const userSchema = new mongoose.Schema(
     location: {
       type: pointSchema,
     },
+    currentlocation: {
+      type: pointSchema,
+    },
     referal: {
       type: String,
       unique: true,

@@ -947,7 +947,24 @@ module.exports = {
       return response.error(res, error);
     }
   },
-
+  driverupdatelocation: async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      user.currentlocation = req?.body?.track;
+      await user.save();
+      return response.ok(res, user);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  getdriverlocation: async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id,"-password");
+      return response.ok(res, user);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
   // tax controller
   getTax: async (req, res) => {
     try {

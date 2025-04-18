@@ -416,6 +416,7 @@ module.exports = {
             total: 0,
             location: payload.location,
             paymentmode: payload.paymentmode,
+            timeslot: payload.timeslot,
           };
         }
 
@@ -433,6 +434,7 @@ module.exports = {
           image: item.image,
           qty: item.qty,
           price: item.price,
+          price_slot:item.price_slot,
         });
 
         // Calculate total price for this product
@@ -669,6 +671,7 @@ module.exports = {
         );
       }
       if (req.body.status === "Delivered") {
+        product.onthewaytodelivery = false;
         await notify(
           product.user,
           "Order delivered",
@@ -682,6 +685,17 @@ module.exports = {
           "Order collected by driver"
         );
       }
+
+      product.save();
+      return response.ok(res, product);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  onthewaytodelivery: async (req, res) => {
+    try {
+      const product = await ProductRequest.findById(req.params.id);
+      product.onthewaytodelivery = true;
 
       product.save();
       return response.ok(res, product);
@@ -747,7 +761,7 @@ module.exports = {
             },
           },
         },
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, orders);
     } catch (err) {
       return response.error(res, err);
@@ -758,7 +772,7 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: { $ne: "Delivered" },
-      }).populate("user", "-password");
+      }).sort({ createdAt: -1 }).populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
