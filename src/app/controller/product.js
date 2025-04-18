@@ -416,6 +416,7 @@ module.exports = {
             total: 0,
             location: payload.location,
             paymentmode: payload.paymentmode,
+            timeslot: payload.timeslot,
           };
         }
 
