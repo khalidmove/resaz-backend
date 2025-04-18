@@ -31,7 +31,7 @@ router.get("/getDriverList/:type", isAuthenticated(["USER", "ADMIN", "SELLER", "
 router.post("/updateStatus", isAuthenticated(["ADMIN", "DRIVER"]), user.updateStatus);
 router.get("/getSellerList", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getSellerList);
 router.post("/getInTouch", user.createGetInTouch);
-router.get("/getInTouch/:id", user.updateGetInTouch);
+router.patch("/getInTouch/:id", user.updateGetInTouch);
 router.post("/get-getInTouch", user.getGetInTouch);
 router.delete("/user/delgetintouch/:id", user.deleteGetInTouch);
 
@@ -384,5 +384,7 @@ router.get("/getEmployee", isAuthenticated(["SELLER"]), user.getEmployeeList);
 router.post("/updateEmployee", isAuthenticated(["SELLER"]), user.updateEmployee);
 router.delete("/deleteEmployee/:id", isAuthenticated(["SELLER"]), user.deleteEmployee);
 router.get("/getEmployeeById/:id", isAuthenticated(["SELLER"]), user.getEmployeeById);
+// router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
+router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 
 module.exports = router;

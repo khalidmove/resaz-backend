@@ -744,7 +744,7 @@ module.exports = {
 
   createGetInTouch: async (req, res) => {
     try {
-      const payload = req?.body || {};
+      const payload = req.body;
       let getintouch = new Getintouch(payload);
       // await mailNotification.supportmail(payload)
       const blg = await getintouch.save();
@@ -756,8 +756,16 @@ module.exports = {
 
   updateGetInTouch: async (req, res) => {
     try {
-      await Getintouch.findByIdAndUpdate(req.params.id, { read: true });
-      return response.ok(res, { message: "read" });
+      const { id } = req.params;
+      const status = req.body.status;
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        return response.badReq(res, { message: "Invalid or missing ID." });
+      }
+      const updated = await Getintouch.findByIdAndUpdate(id, { read: true, status }, { new: true });
+      if (!updated) {
+        return response.notFound(res, { message: "GetInTouch entry not found." });
+      }
+      return response.ok(res, { message: "read", data: updated });
     } catch (error) {
       return response.error(res, error);
     }
@@ -774,6 +782,12 @@ module.exports = {
         );
         cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
       }
+
+      if (req.body.status) {
+        cond.status = req.body.status;
+      }
+
+      console.log("condition", cond);
 
       let page = parseInt(req.query.page) || 1; // For example, page 1
       let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
@@ -1004,6 +1018,21 @@ module.exports = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
+      const returnAllIds = req.query.all === "true";
+
+      if (returnAllIds) {
+        const allEmployees = await User.find({
+          type: "EMPLOYEE",
+          parent_vendor_id: req.user.id,
+        }).select("_id name");
+        if (!allEmployees || allEmployees.length === 0) {
+          return response.notFound(res, { message: "No employees found" });
+        }
+        return res.status(200).json({
+          status: true,
+          allEmployeeIds: allEmployees.map((u) => u._id),
+        });
+      }
 
       const vendorId = req.user.id;
       const employees = await User.find({

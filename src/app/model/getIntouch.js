@@ -20,7 +20,13 @@ const getintouch = new mongoose.Schema(
     read: {
       type: Boolean,
       default: false
-    }
+    },
+    reason: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["pending", "resolved", "processing"],
+      default: "pending",
+    },
   },
   {
     timestamps: true,

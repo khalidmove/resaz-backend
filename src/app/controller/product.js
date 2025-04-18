@@ -175,23 +175,25 @@ module.exports = {
     console.log(req.query);
     try {
       let cond = { status: "verified" };
-  
+
       // Filter by category
       if (req?.query?.category && req?.query?.category !== "all") {
-        const cat = await Category.findOne({ slug: req?.query?.category }).lean();
+        const cat = await Category.findOne({
+          slug: req?.query?.category,
+        }).lean();
         if (cat) cond.category = cat._id;
       }
-  
+
       // Exclude specific product
       if (req?.query?.product_id) {
         cond._id = { $ne: req?.query?.product_id };
       }
-  
+
       // Filter by new
       if (req.query.is_new) {
         cond.is_new = true;
       }
-  
+
       // Filter by colors
       if (req.query.colors && req.query.colors.length > 0) {
         cond.varients = {
@@ -199,15 +201,15 @@ module.exports = {
           $elemMatch: { color: { $in: req.query.colors } },
         };
       }
-  
+
       // Pagination config
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 12;
       const skip = (page - 1) * limit;
-  
+
       // Fetch all matching products first
       let products = await Product.find(cond).populate("category").lean();
-  
+
       // Manual sort
       const sortBy = req.query.sort_by;
       if (sortBy === "low") {
@@ -227,17 +229,21 @@ module.exports = {
       } else if (sortBy === "z_a") {
         products = products.sort((a, b) => b.name.localeCompare(a.name));
       } else if (sortBy === "old") {
-        products = products.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        products = products.sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        );
       } else {
         // Default or "new", "featured", "is_top"
-        products = products.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        products = products.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
       }
-  
+
       // Slice products for pagination after sorting
       const totalProducts = products.length;
       const totalPages = Math.ceil(totalProducts / limit);
       const paginatedProducts = products.slice(skip, skip + limit);
-  
+
       return res.status(200).json({
         status: true,
         data: paginatedProducts,
@@ -251,8 +257,8 @@ module.exports = {
     } catch (error) {
       return response.error(res, error);
     }
-  },  
-  
+  },
+
   getProductBythemeId: async (req, res) => {
     console.log(req.query);
     try {
@@ -964,4 +970,22 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  
+  assignOrderToEmployee: async (req, res) => {
+  try {
+    const { orderId, employeeId } = req.body;
+    const order = await ProductRequest.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.assignedEmployee = employeeId;
+    await order.save();
+    return res.status(200).json({ message: "Order assigned successfully" });
+  }
+  catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+},
 };
+
