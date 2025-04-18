@@ -69,6 +69,10 @@ const productrequestchema = new mongoose.Schema(
     shipping_address: {
       type: Object,
     },
+    tax: {
+      type: Number,
+      default: 0,
+    },
     total: {
       type: Number,
     },
@@ -90,6 +94,10 @@ const productrequestchema = new mongoose.Schema(
       type: String,
       enum: ["Yes", "No"],
       default: "No",
+    },
+    assignedEmployee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   {

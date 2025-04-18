@@ -15,7 +15,9 @@ const Notification = mongoose.model("Notification");
 const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
 const generateUniqueId = require("generate-unique-id");
+const Tax = require("../model/tax");
 const Setting = mongoose.model("Setting");
+const jwt = require("jsonwebtoken");
 
 module.exports = {
   // login controller
@@ -155,6 +157,78 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  updateAdminDetails: async (req, res) => {
+    try {
+      const payload = req.body;
+      const userId = req.params.id;
+      const user = await User.findById(userId);
+
+      if (!user) return response.error(res, "User not found");
+
+      const changes = {};
+      const pendingChanges = {};
+
+      if (payload.email && payload.email !== user.email) {
+        pendingChanges.email = payload.email;
+      }
+
+      if (payload.password) {
+        pendingChanges.password = payload.password; // ideally hash later
+      }
+
+      if (Object.keys(pendingChanges).length > 0) {
+        // create secure token with the new data and user ID
+        const token = jwt.sign(
+          { userId, changes: pendingChanges },
+          process.env.SECRET,
+          { expiresIn: "15m" }
+        );
+
+        const confirmUrl = `${process.env.APP_URL}/confirm-update?token=${token}`;
+
+        // await sendEmail({
+        //   to: user.email, // current email
+        //   subject: "Confirm your admin profile update",
+        //   html: `<p>Please confirm your update by clicking the link below:</p>
+        //          <a href="${confirmUrl}">Confirm Update</a>`,
+        // });
+
+        await mailNotification.updateMail({
+          email: user.email,
+          confirmUrl,
+        });
+
+        return response.ok(res, {
+          message:
+            "Confirmation email sent. Please verify to complete the update.",
+        });
+      }
+
+      await User.findByIdAndUpdate(userId, payload, { new: true });
+      return response.ok(res, { message: "Details updated." });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  confirmUpdate: async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      const decoded = jwt.verify(token, process.env.SECRET);
+      const { userId, changes } = decoded;
+
+      if (changes.password) {
+        const bcrypt = require("bcryptjs");
+        changes.password = await bcrypt.hash(changes.password, 10);
+      }
+
+      await User.findByIdAndUpdate(userId, changes, { new: true });
+
+      return response.ok(res, { message: "Update confirmed and applied." });
+    } catch (err) {
+      return response.error(res, "Invalid or expired token.");
+    }
+  },
   sendOTP: async (req, res) => {
     try {
       const email = req.body.email;
@@ -240,42 +314,128 @@ module.exports = {
     }
   },
 
+  // getUserList: async (req, res) => {
+  //   try {
+  //     const page = parseInt(req.query.page) || 1;
+  //     const limit = parseInt(req.query.limit) || 10;
+  //     const skip = (page - 1) * limit;
+
+  //     const typeParam = req.params.type;
+  //     let typeFilter = {};
+
+  //     if (typeParam === "all") {
+  //       typeFilter.type = { $in: ["USER", "SELLER"] };
+  //     } else if (typeParam === "users") {
+  //       typeFilter.type = { $ne: "USER" }; // assuming "USER" is not a customer
+  //     } else if (typeParam === "sellers") {
+  //       typeFilter.type = { $ne: "SELLER" }; // assuming "SELLER" is not a seller
+  //     } else {
+  //       typeFilter.type = typeParam; // specific type
+  //     }
+
+  //     const users = await User.find(typeFilter)
+  //       .sort({ createdAt: -1 })
+  //       .skip(skip)
+  //       .limit(limit);
+
+  //     const indexedUser = users.map((item, index) => ({
+  //       ...(item.toObject?.() || item),
+  //       indexNo: skip + index + 1,
+  //     }));
+
+  //     const totalUsers = await User.countDocuments(typeFilter);
+  //     const totalPages = Math.ceil(totalUsers / limit);
+
+  //     return res.status(200).json({
+  //       status: true,
+  //       data: indexedUser,
+  //       pagination: {
+  //         totalItems: totalUsers,
+  //         totalPages: totalPages,
+  //         currentPage: page,
+  //         itemsPerPage: limit,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Error fetching user list:", error);
+  //     return res.status(500).json({
+  //       status: false,
+  //       message: "Internal Server Error",
+  //       error: error.message,
+  //     });
+  //   }
+  // },
+
   getUserList: async (req, res) => {
     try {
-      let user = await User.find({ type: req.params.type });
-      return response.ok(res, user);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      const returnAllIds = req.query.all === "true";
+
+      const typeParam = req.params.type;
+      console.log("User type:", typeParam);
+      let typeFilter = {};
+
+      if (typeParam === "all") {
+        typeFilter.type = { $in: ["USER", "SELLER", "DRIVER"] };
+      } else if (typeParam === "users") {
+        typeFilter.type = "USER";
+      } else if (typeParam === "sellers") {
+        typeFilter.type = "SELLER";
+      } else if (typeParam === "drivers") {
+        typeFilter.type = "DRIVER";
+      } else {
+        typeFilter.type = typeParam;
+      }
+
+      if (returnAllIds) {
+        const allUsers = await User.find(typeFilter).select("_id");
+        return res.status(200).json({
+          status: true,
+          allUserIds: allUsers.map((u) => u._id),
+        });
+      }
+
+      const users = await User.find(typeFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedUser = users.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalUsers = await User.countDocuments(typeFilter);
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: indexedUser,
+        pagination: {
+          totalItems: totalUsers,
+          totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
-      return response.error(res, error);
+      console.error("Error fetching user list:", error);
+      return res.status(500).json({
+        status: false,
+        message: "Internal Server Error",
+        error: error.message,
+      });
     }
   },
 
   getSellerList: async (req, res) => {
     try {
-      // Pagination
-      let page = parseInt(req.query.page) || 1; // For example, page 1
-      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
-      let skip = (page - 1) * limit; // Calculate the number of items to skip
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
 
-      // let user = await User.find({ type: req.params.type });
-      // let user = await User.aggregate([
-      //   {
-      //     $match: { type: "SELLER" },
-      //   },
-      //   {
-      //     $lookup: {
-      //       from: "stores",
-      //       localField: "_id",
-      //       foreignField: "userid",
-      //       as: "store",
-      //     },
-      //   },
-      //   {
-      //     $unwind: {
-      //       path: "$store",
-      //       preserveNullAndEmptyArrays: true,
-      //     },
-      //   },
-      // ])
       let user = await User.aggregate([
         {
           $match: { type: "SELLER" },
@@ -287,7 +447,7 @@ module.exports = {
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ["$userid", "$$userId"] }, 
+                  $expr: { $eq: ["$userid", "$$userId"] },
                 },
               },
               { $sort: { createdAt: -1 } },
@@ -311,8 +471,8 @@ module.exports = {
         indexNo: skip + index + 1,
       }));
 
-      const totalUsers = await User.countDocuments({ type: "SELLER" }); // Get the total number of users
-      const totalPages = Math.ceil(totalUsers / limit); // Calculate total pages
+      const totalUsers = await User.countDocuments({ type: "SELLER" });
+      const totalPages = Math.ceil(totalUsers / limit);
 
       // return response.ok(res, user);
       return res.status(200).json({
@@ -340,7 +500,6 @@ module.exports = {
         });
       }
 
-      // Pagination
       let page = parseInt(req.query.page) || 1; // For example, page 1
       let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
       let skip = (page - 1) * limit; // Calculate the number of items to skip
@@ -585,7 +744,7 @@ module.exports = {
 
   createGetInTouch: async (req, res) => {
     try {
-      const payload = req?.body || {};
+      const payload = req.body;
       let getintouch = new Getintouch(payload);
       // await mailNotification.supportmail(payload)
       const blg = await getintouch.save();
@@ -597,8 +756,16 @@ module.exports = {
 
   updateGetInTouch: async (req, res) => {
     try {
-      await Getintouch.findByIdAndUpdate(req.params.id, { read: true });
-      return response.ok(res, { message: "read" });
+      const { id } = req.params;
+      const status = req.body.status;
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        return response.badReq(res, { message: "Invalid or missing ID." });
+      }
+      const updated = await Getintouch.findByIdAndUpdate(id, { read: true, status }, { new: true });
+      if (!updated) {
+        return response.notFound(res, { message: "GetInTouch entry not found." });
+      }
+      return response.ok(res, { message: "read", data: updated });
     } catch (error) {
       return response.error(res, error);
     }
@@ -616,7 +783,12 @@ module.exports = {
         cond.createdAt = { $gte: new Date(req.body.curDate), $lte: newEt };
       }
 
-      // Pagination
+      if (req.body.status) {
+        cond.status = req.body.status;
+      }
+
+      console.log("condition", cond);
+
       let page = parseInt(req.query.page) || 1; // For example, page 1
       let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
       let skip = (page - 1) * limit; // Calculate the number of items to skip
@@ -743,7 +915,13 @@ module.exports = {
 
   getShippingAddress: async (req, res) => {
     try {
-      const user = await User.findById(req.user.id || req.params.id);
+      const userId = req.user?.id || req.params.id;
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return response.notFound(res, "User not found");
+      }
+
       return response.ok(res, user.shipping_address);
     } catch (error) {
       return response.error(res, error);
@@ -786,5 +964,218 @@ module.exports = {
     } catch (error) {
       return response.error(res, error);
     }
+  },
+  // tax controller
+  getTax: async (req, res) => {
+    try {
+      const taxes = await Tax.find();
+      if (!taxes || taxes?.length === 0) {
+        return response.notFound(res, { message: "No tax found" });
+      }
+      return response.ok(res, taxes);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  addOrUpdateTax: async (req, res) => {
+    try {
+      const payload = req.body;
+
+      const updatedTax = await Tax.findOneAndUpdate(
+        // { userId: payload.userId },
+        {},
+        payload,
+        { new: true, upsert: true, runValidators: true }
+      );
+
+      return response.ok(res, {
+        message: "Tax updated successfully.",
+        // message: updatedTax ? "Tax updated successfully." : "Tax added successfully.",
+        data: updatedTax,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  // Employee creation by vendor
+  createEmployee: async (req, res) => {
+    try {
+      const payload = req.body;
+      const vendorId = req.user.id;
+      const user = await User.findById(vendorId);
+      if (!user) {
+        return response.notFound(res, { message: "Vendor not found" });
+      }
+      const existingEmployee = await User.findOne({
+        email: payload.email,
+        type: "EMPLOYEE",
+      });
+
+      if (existingEmployee) {
+        return response.conflict(res, { message: "Employee already exists" });
+      }
+
+      const employee = new User({
+        ...payload,
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      });
+
+      employee.password = employee.encryptPassword(payload.password);
+      await employee.save();
+      return response.ok(res, { message: "Employee created successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  getEmployeeList: async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      const returnAllIds = req.query.all === "true";
+
+      if (returnAllIds) {
+        const allEmployees = await User.find({
+          type: "EMPLOYEE",
+          parent_vendor_id: req.user.id,
+        }).select("_id name");
+        if (!allEmployees || allEmployees.length === 0) {
+          return response.notFound(res, { message: "No employees found" });
+        }
+        return res.status(200).json({
+          status: true,
+          allEmployeeIds: allEmployees.map((u) => u._id),
+        });
+      }
+
+      const vendorId = req.user.id;
+      const employees = await User.find({
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      })
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedEmployees = employees.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalEmployees = await User.countDocuments({
+        type: "EMPLOYEE",
+        parent_vendor_id: vendorId,
+      });
+
+      const totalPages = Math.ceil(totalEmployees / limit);
+      return res.status(200).json({
+        status: true,
+        data: indexedEmployees,
+        pagination: {
+          totalItems: totalEmployees,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+      // return response.ok(res, employees);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  updateEmployee: async (req, res) => {
+    try {
+      const payload = req.body;
+      const employeeId = req.body.id;
+      const updatedEmployee = await User.findByIdAndUpdate(
+        employeeId,
+        payload,
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedEmployee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+
+      return response.ok(res, { message: "Employee updated successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  deleteEmployee: async (req, res) => {
+    try {
+      const employeeId = req.params.id;
+      const vendorId = req.user.id;
+  
+      const employee = await User.findById(employeeId);
+  
+      if (!employee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+  
+      if (!employee.parent_vendor_id || employee.parent_vendor_id.toString() !== vendorId) {
+        return response.forbidden(res, { message: "Unauthorized" });
+      }
+  
+      await employee.deleteOne();
+  
+      return response.ok(res, { message: "Employee deleted successfully" });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  
+  getEmployeeById: async (req, res) => {
+    try {
+      const employeeId = req.params.id;
+      const employee = await User.findById(employeeId).select("-password");
+
+      if (!employee) {
+        return response.notFound(res, { message: "Employee not found" });
+      }
+
+      return response.ok(res, employee);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  loginEmployee: async (req, res) => {
+    passport.authenticate("local", async (err, user, info) => {
+      if (err) {
+        return response.error(res, err);
+      }
+      if (!user) {
+        return response.unAuthorize(res, info);
+      }
+      let token = await new jwtService().createJwtToken({
+        id: user._id,
+        // user: user.fullName,
+        type: user.type,
+        tokenVersion: new Date(),
+      });
+      await Device.updateOne(
+        { device_token: req.body.device_token },
+        { $set: { player_id: req.body.player_id, user: user._id } },
+        { upsert: true }
+      );
+      await user.save();
+      let data = {
+        token,
+        ...user._doc,
+      };
+      // if (user.type === "SELLER") {
+      //   let store = await Store.findOne({ userid: user._id });
+      //   data.store = store;
+      // }
+      delete data.password;
+      return response.ok(res, { ...data });
+    })(req, res);
   },
 };

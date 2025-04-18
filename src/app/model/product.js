@@ -23,9 +23,9 @@ const productchema = new mongoose.Schema({
     origin: {
         type: String,
     },
-    selflife: {
-        type: String,
-    },
+    // selflife: {
+    //     type: String,
+    // },
     manufacturername: {
         type: String,
     },
@@ -50,12 +50,12 @@ const productchema = new mongoose.Schema({
     long_description: {
         type: String,
     },
-    price: {
-        type: Number,
-    },
-    offer: {
-        type: Number,
-    },
+    // price: {
+    //     type: Number,
+    // },
+    // offer: {
+    //     type: Number,
+    // },
     pieces: {
         type: Number,
     },
@@ -74,7 +74,22 @@ const productchema = new mongoose.Schema({
     parameter_type: {
         type: String
     },
-    price_slot: [],
+    price_slot: [{
+        unit: {
+            type: String
+        },
+        value: {
+            type: String,
+        },
+        our_price: {
+            type: Number,
+            default: 0
+        },
+        other_price: {
+            type: Number,
+            default: 0
+        },
+    }],
     is_verified: {
         type: Boolean,
         default: false

@@ -4,7 +4,7 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS
+    pass: process.env.MAIL_PASS,
   },
 });
 const sendMail = async (to, subject, html) => {
@@ -42,6 +42,30 @@ module.exports = {
     try {
       const html = `<div> Your password has been reset, if you didn't update your password, please call us on (.) between 9am - 5pm Monday to Friday. \r\n\r\nSwiftGuard  </div>`;
       return await sendMail(email, "PASSWORD RESET NOTIFICATION EMAIL", html);
+    } catch (err) {
+      throw new Error("Could not send OTP mail");
+    }
+  },
+  updateMail: async ({ email, confirmUrl }) => {
+    try {
+      const html = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      <h2 style="color: #333;">Admin Profile Update Request</h2>
+      <p>Hello Admin,</p>
+      <p>We received a request to update your profile details. To apply the changes, please confirm by clicking the button below:</p>
+      
+      <a href="${confirmUrl}" 
+         style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+        Confirm Update
+      </a>
+
+      <p>If you didn't request this change, you can ignore this email. The changes will not be applied unless you confirm.</p>
+
+      <p style="color: #888; font-size: 12px;">This link will expire in 15 minutes.</p>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 40px 0;" />
+      <p style="font-size: 12px; color: #aaa;">&copy; ${new Date().getFullYear()} Your App Name. All rights reserved.</p>
+    </div>`;
+      return await sendMail(email, "Confirm Your Admin Profile Update", html);
     } catch (err) {
       throw new Error("Could not send OTP mail");
     }
