@@ -1024,13 +1024,13 @@ module.exports = {
         const allEmployees = await User.find({
           type: "EMPLOYEE",
           parent_vendor_id: req.user.id,
-        }).select("_id name");
+        }).select("_id username");
         if (!allEmployees || allEmployees.length === 0) {
           return response.notFound(res, { message: "No employees found" });
         }
         return res.status(200).json({
           status: true,
-          allEmployeeIds: allEmployees.map((u) => u._id),
+          data: allEmployees,
         });
       }
 

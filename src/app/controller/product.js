@@ -970,22 +970,20 @@ module.exports = {
       return response.error(res, error);
     }
   },
-  
+
   assignOrderToEmployee: async (req, res) => {
-  try {
-    const { orderId, employeeId } = req.body;
-    const order = await ProductRequest.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+    try {
+      const { orderId, assignedEmployee } = req.body;
+      const order = await ProductRequest.findById(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      order.assignedEmployee = assignedEmployee;
+      await order.save();
+      return res.status(200).json({ message: "Order assigned successfully" });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
     }
-
-    order.assignedEmployee = employeeId;
-    await order.save();
-    return res.status(200).json({ message: "Order assigned successfully" });
-  }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-},
+  },
 };
-
