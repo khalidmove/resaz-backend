@@ -40,7 +40,19 @@ module.exports = {
   },
   passwordChange: async ({ email }) => {
     try {
-      const html = `<div> Your password has been reset, if you didn't update your password, please call us on (.) between 9am - 5pm Monday to Friday. \r\n\r\nSwiftGuard  </div>`;
+      // const html = `<div> Your password has been reset, if you didn't update your password, please call us on (.) between 9am - 5pm Monday to Friday. \r\n\r\nSwiftGuard  </div>`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+          <h2 style="color: #333;">Password Reset Notification</h2>
+          <p>Hello ${email},</p>
+          <p>This is to inform you that your password has been reset.</p>
+  
+          <p>If you didn’t make this change or believe it was unauthorized, please contact support immediately.</p>
+  
+          <hr style="border: none; border-top: 1px solid #eee; margin: 40px 0;" />
+          <p style="font-size: 12px; color: #aaa;">&copy; ${new Date().getFullYear()} Marketplace. All rights reserved.</p>
+        </div>
+      `;
       return await sendMail(email, "PASSWORD RESET NOTIFICATION EMAIL", html);
     } catch (err) {
       throw new Error("Could not send OTP mail");
@@ -63,11 +75,33 @@ module.exports = {
       <p style="color: #888; font-size: 12px;">This link will expire in 15 minutes.</p>
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 40px 0;" />
-      <p style="font-size: 12px; color: #aaa;">&copy; ${new Date().getFullYear()} Your App Name. All rights reserved.</p>
+      <p style="font-size: 12px; color: #aaa;">&copy; ${new Date().getFullYear()} Marketplace. All rights reserved.</p>
     </div>`;
       return await sendMail(email, "Confirm Your Admin Profile Update", html);
     } catch (err) {
       throw new Error("Could not send OTP mail");
     }
   },
+
+  updateUser: async ({ email, name }) => {
+    try {
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+          <h2 style="color: #333;">Profile Update Notification</h2>
+          <p>Hello ${name},</p>
+          <p>This is to inform you that your profile details have been updated successfully.</p>
+  
+          <p>If you didn’t make this change or believe it was unauthorized, please contact support immediately.</p>
+  
+          <hr style="border: none; border-top: 1px solid #eee; margin: 40px 0;" />
+          <p style="font-size: 12px; color: #aaa;">&copy; ${new Date().getFullYear()} Marketplace. All rights reserved.</p>
+        </div>
+      `;
+  
+      return await sendMail(email, "Your Profile Was Updated", html);
+    } catch (err) {
+      throw new Error("Could not send update notification email");
+    }
+  }
+  
 };
