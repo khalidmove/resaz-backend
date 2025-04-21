@@ -539,6 +539,53 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  refundProduct: async (req, res) => {
+    try {
+      const product = await ProductRequest.findById(req.params.id);
+      if (!product) {
+        return response.error(res, { message: "Product not found" });
+      }
+
+      if (product.status === "Refunded") {
+        return response.error(res, { message: "Product already refunded" });
+      }
+
+      product.status = "Refunded";
+      product.refund = true;
+      product.refundreason = req.body.reason;
+      product.refundamount = req.body.amount;
+      product.refundby = req.user.id;
+
+      product.refunddate = new Date();
+      await product.save();
+
+      await User.findByIdAndUpdate(
+        product.user,
+        { $inc: { wallet: Number(product.refundamount) } },
+        { new: true, upsert: true }
+      );
+      await User.findByIdAndUpdate(
+        product.seller_id,
+        { $inc: { wallet: -Number(product.refundamount) } },
+        { new: true, upsert: true }
+      );
+      
+      await mailNotification.sendMail(
+        product.user,
+        "Refund Request",
+        `Your refund request has been processed successfully. Amount: ${product.refundamount}`
+      );
+      await mailNotification.sendMail(
+        product.seller_id,
+        "Refund Request",
+        `A refund request has been processed for your order. Amount: ${product.refundamount}`
+      );
+
+      return response.ok(res, product);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
 
   getOrderBySeller: async (req, res) => {
     try {

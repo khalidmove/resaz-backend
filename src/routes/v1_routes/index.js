@@ -146,11 +146,7 @@ router.get("/getProductbycategory/:id", product.getProductbycategory);
 router.get("/getProductBycategoryId", product.getProductBycategoryId);
 router.get("/getProductBythemeId/:id", product.getProductBythemeId);
 router.get("/getTopSoldProduct", product.getTopSoldProduct);
-router.post(
-    "/createProduct",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
-    product.createProduct
-);
+router.post("/createProduct", isAuthenticated(["USER", "ADMIN", "SELLER"]), product.createProduct);
 router.get("/getProduct", product.getProduct);
 router.get("/getProductforseller",isAuthenticated(["USER", "ADMIN", "SELLER"]), product.getProductforseller);
 router.get("/getSponseredProduct", product.getSponseredProduct);
@@ -241,6 +237,12 @@ router.get(
     "/getProductRquest",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getrequestProduct
+);
+
+router.patch(
+    "/refundProduct/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.refundProduct
 );
 
 router.post(
