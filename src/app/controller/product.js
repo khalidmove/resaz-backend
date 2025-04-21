@@ -36,9 +36,9 @@ module.exports = {
       }
 
       // Pagination
-      let page = parseInt(req.query.page) || 1; // For example, page 1
-      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
-      let skip = (page - 1) * limit; // Calculate the number of items to skip
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
 
       let product = await Product.find(data)
         .populate("category")
@@ -545,12 +545,12 @@ module.exports = {
       let cond = {};
       const { curDate } = req.body;
 
-      if (req.user.type === "SELLER") {
-        cond = {
-          seller_id: req.user.id,
-          status: { $in: ["Pending", "Packed"] },
-        };
-      }
+      // if (req.user.type === "SELLER") {
+      //   cond = {
+      //     seller_id: req.user.id,
+      //     status: { $in: ["Pending", "Packed"] },
+      //   };
+      // }
 
       if (curDate) {
         cond.createdAt = {
@@ -570,9 +570,9 @@ module.exports = {
       }
 
       // Pagination
-      let page = parseInt(req.query.page) || 1; // For example, page 1
-      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
-      let skip = (page - 1) * limit; // Calculate the number of items to skip
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
 
       const product = await ProductRequest.find(cond)
         .populate("user", "-password -varients")
@@ -603,6 +603,98 @@ module.exports = {
       return response.error(res, error);
     }
   },
+
+  getSellerOrderByAdmin: async (req, res) => {
+    try {
+      let cond = {};
+      const { curDate } = req.body;
+
+      if (curDate) {
+        cond.createdAt = {
+          $gte: new Date(`${curDate}T00:00:00.000Z`),
+          $lt: new Date(`${curDate}T23:59:99.999Z`),
+        };
+      }
+
+      if (req.body.curentDate) {
+        const newEt = new Date(
+          new Date(req.body.curentDate).setDate(
+            new Date(req.body.curentDate).getDate() + 1
+          )
+        );
+        cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
+      }
+
+      if (req.body.type){
+        cond.status = req.body.type;
+      }
+
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
+
+      const product = await ProductRequest.find(cond)
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .populate("seller_id", "-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedProducts = product.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalBlogs = await ProductRequest.countDocuments(cond);
+      const totalPages = Math.ceil(totalBlogs / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: indexedProducts,
+        pagination: {
+          totalItems: totalBlogs,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  getSellerProductByAdmin: async (req, res) => {
+    try {
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
+
+      let product = await Product.find()
+        .populate("category")
+        .populate("userid", "-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      // return response.ok(res, product);
+      let totalProducts = await Product.countDocuments(); // Count total products matching the criteria
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: product,
+        pagination: {
+          totalItems: totalProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
   getAssignedOrder: async (req, res) => {
     try {
       let cond = {};
@@ -914,9 +1006,9 @@ module.exports = {
   getdriveramount: async (req, res) => {
     try {
       // Pagination
-      let page = parseInt(req.query.page) || 1; // For example, page 1
-      let limit = parseInt(req.query.limit) || 10; // For example, 10 items per page
-      let skip = (page - 1) * limit; // Calculate the number of items to skip
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit) || 10;
+      let skip = (page - 1) * limit;
 
       const product = await User.find({ wallet: { $gt: 0 }, type: "DRIVER" })
         .sort({ createdAt: -1 })
@@ -984,22 +1076,21 @@ module.exports = {
       return response.error(res, error);
     }
   },
-  
-  assignOrderToEmployee: async (req, res) => {
-  try {
-    const { orderId, employeeId } = req.body;
-    const order = await ProductRequest.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
 
-    order.assignedEmployee = employeeId;
-    await order.save();
-    return res.status(200).json({ message: "Order assigned successfully" });
-  }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  assignOrderToEmployee: async (req, res) => {
+    try {
+      const { orderId, assignedEmployee } = req.body;
+      const order = await ProductRequest.findById(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      order.assignedEmployee = assignedEmployee;
+      await order.save();
+      return res.status(200).json({ message: "Order assigned successfully" });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
 },
 getOrderByEmployee: async (req, res) => {
   try {
@@ -1037,5 +1128,5 @@ getOrderHistoryByEmployee: async (req, res) => {
     return response.error(res, error);
   }
 },
-};
+  }
 

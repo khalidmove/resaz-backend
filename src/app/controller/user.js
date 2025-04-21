@@ -135,6 +135,8 @@ module.exports = {
       user.password = user.encryptPassword(req.body.password);
       await user.save();
       // mailNotification.passwordChange({ email: user.email });
+      // return response.ok(res, { message: "Password changed." });
+      await mailNotification.passwordChange({ email: user.email });
       return response.ok(res, { message: "Password changed." });
     } catch (error) {
       return response.error(res, error);
@@ -173,11 +175,10 @@ module.exports = {
       }
 
       if (payload.password) {
-        pendingChanges.password = payload.password; // ideally hash later
+        pendingChanges.password = payload.password;
       }
 
       if (Object.keys(pendingChanges).length > 0) {
-        // create secure token with the new data and user ID
         const token = jwt.sign(
           { userId, changes: pendingChanges },
           process.env.SECRET,
@@ -185,13 +186,6 @@ module.exports = {
         );
 
         const confirmUrl = `${process.env.APP_URL}/confirm-update?token=${token}`;
-
-        // await sendEmail({
-        //   to: user.email, // current email
-        //   subject: "Confirm your admin profile update",
-        //   html: `<p>Please confirm your update by clicking the link below:</p>
-        //          <a href="${confirmUrl}">Confirm Update</a>`,
-        // });
 
         await mailNotification.updateMail({
           email: user.email,
@@ -703,6 +697,41 @@ module.exports = {
       //     await user.save();
       //   }
       // }
+
+      // For confirmation through email umcomment it
+      // const user = await User.findById(userId);
+      // if (!user) return response.error(res, "User not found");
+
+      // const pendingChanges = {};
+
+      // if (payload.email && payload.email !== user.email) {
+      //   pendingChanges.email = payload.email;
+      // }
+
+      // if (payload.password) {
+      //   pendingChanges.password = payload.password;
+      // }
+
+      // if (Object.keys(pendingChanges).length > 0) {
+      //   const token = jwt.sign(
+      //     { userId, changes: pendingChanges },
+      //     process.env.SECRET,
+      //     { expiresIn: "15m" }
+      //   );
+
+      //   const confirmUrl = `${process.env.APP_URL}/confirm-update?token=${token}`;
+
+      //   await mailNotification.updateMail({
+      //     email: user.email,
+      //     confirmUrl,
+      //   });
+
+      //   return response.ok(res, {
+      //     message:
+      //       "Confirmation email sent. Please verify to complete the update.",
+      //   });
+      // }
+
       const u = await User.findByIdAndUpdate(
         userId,
         { $set: payload },
@@ -711,6 +740,7 @@ module.exports = {
           upsert: true,
         }
       );
+
       let token = await new jwtService().createJwtToken({
         id: u._id,
         type: u.type,
@@ -721,10 +751,21 @@ module.exports = {
       };
       delete data.password;
       // await Verification.findOneAndDelete({ phone: payload.phone });
-      return response.ok(res, data);
-      // }
 
-      // }
+      await mailNotification.updateUser({
+        email: u.email,
+        name: u.username,
+      });
+
+      // return response.ok(res, {
+      //   message:
+      //     "Confirmation email sent. Please verify to complete the update.",
+      //   data,
+      // });
+      return response.ok(res, {
+        message: "Profile updated.",
+        data,
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -761,9 +802,15 @@ module.exports = {
       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return response.badReq(res, { message: "Invalid or missing ID." });
       }
-      const updated = await Getintouch.findByIdAndUpdate(id, { read: true, status }, { new: true });
+      const updated = await Getintouch.findByIdAndUpdate(
+        id,
+        { read: true, status },
+        { new: true }
+      );
       if (!updated) {
-        return response.notFound(res, { message: "GetInTouch entry not found." });
+        return response.notFound(res, {
+          message: "GetInTouch entry not found.",
+        });
       }
       return response.ok(res, { message: "read", data: updated });
     } catch (error) {
@@ -959,7 +1006,7 @@ module.exports = {
   },
   getdriverlocation: async (req, res) => {
     try {
-      const user = await User.findById(req.params.id,"-password");
+      const user = await User.findById(req.params.id, "-password");
       return response.ok(res, user);
     } catch (error) {
       return response.error(res, error);
@@ -1041,13 +1088,13 @@ module.exports = {
         const allEmployees = await User.find({
           type: "EMPLOYEE",
           parent_vendor_id: req.user.id,
-        }).select("_id name");
+        }).select("_id username");
         if (!allEmployees || allEmployees.length === 0) {
           return response.notFound(res, { message: "No employees found" });
         }
         return res.status(200).json({
           status: true,
-          allEmployeeIds: allEmployees.map((u) => u._id),
+          data: allEmployees,
         });
       }
 
@@ -1112,25 +1159,28 @@ module.exports = {
     try {
       const employeeId = req.params.id;
       const vendorId = req.user.id;
-  
+
       const employee = await User.findById(employeeId);
-  
+
       if (!employee) {
         return response.notFound(res, { message: "Employee not found" });
       }
-  
-      if (!employee.parent_vendor_id || employee.parent_vendor_id.toString() !== vendorId) {
+
+      if (
+        !employee.parent_vendor_id ||
+        employee.parent_vendor_id.toString() !== vendorId
+      ) {
         return response.forbidden(res, { message: "Unauthorized" });
       }
-  
+
       await employee.deleteOne();
-  
+
       return response.ok(res, { message: "Employee deleted successfully" });
     } catch (error) {
       return response.error(res, error);
     }
   },
-  
+
   getEmployeeById: async (req, res) => {
     try {
       const employeeId = req.params.id;
@@ -1178,4 +1228,94 @@ module.exports = {
       return response.ok(res, { ...data });
     })(req, res);
   },
+
+  // Send employee to admin by vendor details
+  getSellerEmployeeByAdmin: async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      const employees = await User.find({
+        type: "EMPLOYEE",
+        // parent_vendor_id: req.params.id,
+      })
+        .select("-password")
+        .populate("parent_vendor_id", "username")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedEmployees = employees.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalEmployees = await User.countDocuments({
+        type: "EMPLOYEE",
+        parent_vendor_id: req.params.id,
+      });
+
+      const totalPages = Math.ceil(totalEmployees / limit);
+      return res.status(200).json({
+        status: true,
+        data: indexedEmployees,
+        pagination: {
+          totalItems: totalEmployees,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  getDashboardStats: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId).select("-password");
+  
+      if (!user) {
+        return response.notFound(res, { message: "User not found" });
+      }
+  
+      let stats;
+  
+      if (user.type === "ADMIN") {
+        // Admin gets global stats
+        stats = {
+          totalVendors: await User.countDocuments({ type: "VENDOR" }),
+          totalEmployees: await User.countDocuments({ type: "EMPLOYEE" }),
+          totalCustomers: await User.countDocuments({ type: "USER" }),
+          totalOrders: await Order.countDocuments(),
+          totalProducts: await Product.countDocuments(),
+        };
+      } else if (user.type === "VENDOR") {
+        // Vendor sees their own stats
+        stats = {
+          totalEmployees: await User.countDocuments({
+            type: "EMPLOYEE",
+            parent_vendor_id: userId,
+          }),
+          totalOrders: await Order.countDocuments({ vendor_id: userId }),
+          totalProducts: await Product.countDocuments({ vendor_id: userId }),
+          totalCustomers: await User.countDocuments({
+            type: "USER",
+            parent_vendor_id: userId,
+          }),
+        };
+      } else {
+        return response.unauthorized(res, {
+          message: "Unauthorized access to dashboard stats",
+        });
+      }
+  
+      return response.ok(res, stats);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  }  
+
 };
