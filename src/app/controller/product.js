@@ -1001,5 +1001,41 @@ module.exports = {
     return res.status(500).json({ message: error.message });
   }
 },
+getOrderByEmployee: async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:'Pending'})
+      .populate("user", "-password -varients")
+      .populate("productDetail.product")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    return res.status(200).json({
+      status: true,
+      data: product,
+    });
+  } catch (error) {
+    return response.error(res, error);
+  }
+},
+getOrderHistoryByEmployee: async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:{$ne:'Pending'}})
+      .populate("user", "-password -varients")
+      .populate("productDetail.product")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    return res.status(200).json({
+      status: true,
+      data: product,
+    });
+  } catch (error) {
+    return response.error(res, error);
+  }
+},
 };
 

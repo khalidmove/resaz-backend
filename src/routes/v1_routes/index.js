@@ -314,6 +314,8 @@ router.post(
 );
 router.get("/acceptedorderfordriver",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.acceptedorderfordriver);
 router.post("/acceptorderdriver/:id",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), product.acceptorderdriver);
+router.post("/getOrderByEmployee",isAuthenticated(["EMPLOYEE"]), product.getOrderByEmployee);
+router.post("/getOrderHistoryByEmployee",isAuthenticated(["EMPLOYEE"]), product.getOrderHistoryByEmployee);
 
 ///withdrawreq
 router.post("/createWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.createWithdrawreq);
