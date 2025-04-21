@@ -811,6 +811,7 @@ module.exports = {
       }
       if (req.body.status === "Delivered") {
         product.onthewaytodelivery = false;
+        product.deliveredAt = new Date();
         await notify(
           product.user,
           "Order delivered",
