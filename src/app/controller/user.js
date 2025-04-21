@@ -1228,4 +1228,94 @@ module.exports = {
       return response.ok(res, { ...data });
     })(req, res);
   },
+
+  // Send employee to admin by vendor details
+  getSellerEmployeeByAdmin: async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      const employees = await User.find({
+        type: "EMPLOYEE",
+        // parent_vendor_id: req.params.id,
+      })
+        .select("-password")
+        .populate("parent_vendor_id", "username")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const indexedEmployees = employees.map((item, index) => ({
+        ...(item.toObject?.() || item),
+        indexNo: skip + index + 1,
+      }));
+
+      const totalEmployees = await User.countDocuments({
+        type: "EMPLOYEE",
+        parent_vendor_id: req.params.id,
+      });
+
+      const totalPages = Math.ceil(totalEmployees / limit);
+      return res.status(200).json({
+        status: true,
+        data: indexedEmployees,
+        pagination: {
+          totalItems: totalEmployees,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  getDashboardStats: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId).select("-password");
+  
+      if (!user) {
+        return response.notFound(res, { message: "User not found" });
+      }
+  
+      let stats;
+  
+      if (user.type === "ADMIN") {
+        // Admin gets global stats
+        stats = {
+          totalVendors: await User.countDocuments({ type: "VENDOR" }),
+          totalEmployees: await User.countDocuments({ type: "EMPLOYEE" }),
+          totalCustomers: await User.countDocuments({ type: "USER" }),
+          totalOrders: await Order.countDocuments(),
+          totalProducts: await Product.countDocuments(),
+        };
+      } else if (user.type === "VENDOR") {
+        // Vendor sees their own stats
+        stats = {
+          totalEmployees: await User.countDocuments({
+            type: "EMPLOYEE",
+            parent_vendor_id: userId,
+          }),
+          totalOrders: await Order.countDocuments({ vendor_id: userId }),
+          totalProducts: await Product.countDocuments({ vendor_id: userId }),
+          totalCustomers: await User.countDocuments({
+            type: "USER",
+            parent_vendor_id: userId,
+          }),
+        };
+      } else {
+        return response.unauthorized(res, {
+          message: "Unauthorized access to dashboard stats",
+        });
+      }
+  
+      return response.ok(res, stats);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  }  
+
 };

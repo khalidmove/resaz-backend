@@ -249,6 +249,16 @@ router.post(
     product.getOrderBySeller
 );
 router.post(
+    "/getSellerOrderByAdmin",
+    isAuthenticated(["ADMIN"]),
+    product.getSellerOrderByAdmin
+);
+router.get(
+    "/getSellerProductByAdmin",
+    isAuthenticated(["ADMIN"]),
+    product.getSellerProductByAdmin
+);
+router.post(
     "/getAssignedOrder",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getAssignedOrder
@@ -399,5 +409,9 @@ router.delete("/deleteEmployee/:id", isAuthenticated(["SELLER"]), user.deleteEmp
 router.get("/getEmployeeById/:id", isAuthenticated(["SELLER"]), user.getEmployeeById);
 // router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
+router.get("/getSellerEmployeeByAdmin", isAuthenticated(["ADMIN"]), user.getSellerEmployeeByAdmin);
+
+// Dashboard stats
+// router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
 
 module.exports = router;
