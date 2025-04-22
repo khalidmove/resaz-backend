@@ -3,15 +3,15 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const pointSchema = new mongoose.Schema({
-    type: {
-        type: String,
-        enum: ['Point'],
-        required: true
-    },
-    coordinates: {
-        type: [Number],
-        required: true
-    }
+  type: {
+    type: String,
+    enum: ["Point"],
+    required: true,
+  },
+  coordinates: {
+    type: [Number],
+    required: true,
+  },
 });
 const userSchema = new mongoose.Schema(
   {
@@ -47,8 +47,16 @@ const userSchema = new mongoose.Schema(
     },
     referalpoints: {
       type: Number,
-      default:0
+      default: 0,
     },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    pointHistory: [
+      {
+        points: Number,
+        earnedAt: Date,
+        expiresAt: Date,
+      },
+    ],
     company: {
       type: String,
     },
@@ -62,25 +70,25 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      default:"Pending"
+      default: "Pending",
     },
     store_name: {
-      type:String
+      type: String,
     },
     address: {
-      type:String
+      type: String,
     },
     country: {
-      type:String
+      type: String,
     },
     store_doc: {
-      type:String
+      type: String,
     },
     national_id_no: {
-      type:String
+      type: String,
     },
     national_id: {
-      type:String
+      type: String,
     },
     // licences: {
     //   type: String
@@ -92,29 +100,29 @@ const userSchema = new mongoose.Schema(
     //   type: String
     // },
     dl_number: {
-      type:String
+      type: String,
     },
     number_plate_no: {
-      type:String
+      type: String,
     },
     dl_image: {
-      type:String
+      type: String,
     },
     number_plate_image: {
-      type:String
+      type: String,
     },
     address_support_letter: {
-      type:String
+      type: String,
     },
-    background_check_document:{
-      type:String
+    background_check_document: {
+      type: String,
     },
-    wallet:{
-      type:Number,
+    wallet: {
+      type: Number,
     },
-    parent_vendor_id:{
-      type:mongoose.Schema.Types.ObjectId,
-      ref:"User"
+    parent_vendor_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   {

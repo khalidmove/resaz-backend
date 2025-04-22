@@ -102,6 +102,22 @@ const productrequestchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+    refund: {
+      type: Boolean,
+      default: false,
+    },
+    refundAmount: {
+      type: Number,
+    },
+    refundreason: { type: String },
+    refundproof: { type: String },    
+    refundStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+    },
+    refunddate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

@@ -112,13 +112,46 @@ module.exports = {
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
+        // if (payload?.referal) {
+        //   const refuser = await User.findOne({ referal: payload.referal });
+        //   const setting = await Setting.findOne();
+        //   refuser.referalpoints =
+        //     (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint);
+        //   await refuser.save();
+        // }
         if (payload?.referal) {
           const refuser = await User.findOne({ referal: payload.referal });
           const setting = await Setting.findOne();
-          refuser.referalpoints =
-            (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint);
-          await refuser.save();
-        }
+        
+          if (refuser && setting) {
+            user.referredBy = refuser._id;
+            const referredUsersCount = await User.countDocuments({ referredBy: refuser._id });
+        
+            let points = 0;
+        
+            if (referredUsersCount < 100) {
+              points = 100;
+            } else if (referredUsersCount < 150) {
+              points = 120;
+            } else if (referredUsersCount < 200) {
+              points = 150;
+            } else {
+              points = 200;
+            }
+        
+            refuser.referalpoints = (Number(refuser.referalpoints) || 0) + points;
+        
+            if (!refuser.pointHistory) refuser.pointHistory = [];
+        
+            refuser.pointHistory.push({
+              points,
+              earnedAt: new Date(),
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year later
+            });
+        
+            await refuser.save();
+          }
+        }        
         // await mailNotification.welcomeMail(user)
         res.status(200).json({ success: true, data: user });
       }

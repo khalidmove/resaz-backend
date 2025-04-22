@@ -434,7 +434,7 @@ module.exports = {
           image: item.image,
           qty: item.qty,
           price: item.price,
-          price_slot:item.price_slot,
+          price_slot: item.price_slot,
         });
 
         // Calculate total price for this product
@@ -541,47 +541,89 @@ module.exports = {
   },
   refundProduct: async (req, res) => {
     try {
-      const product = await ProductRequest.findById(req.params.id);
+      const productId = req.body.product_id;
+
+      const {reason, refundProof} = req.body;
+
+      const order = await ProductRequest.findById(req.params.id);
+      if (!order) {
+        return response.error(res, { message: "Order not found" });
+      }
+
+      if (order.status === "Refunded") {
+        return response.error(res, { message: "Product already refunded" });
+      }
+
+      if (order.status !== "Delivered" || !order.deliveredAt) {
+        return response.error(res, {
+          message: "Refund is allowed only after delivery",
+        });
+      }
+
+      const product = await Product.findById(productId);
       if (!product) {
         return response.error(res, { message: "Product not found" });
       }
 
-      if (product.status === "Refunded") {
-        return response.error(res, { message: "Product already refunded" });
+      // const category = await Category.findById(product.category);
+      // if (!category || category.name !== "Refundable") {
+      //   return response.error(res, { message: "This product is not refundable" });
+      // }
+
+      const deliveredTime = new Date(order.deliveredAt).getTime();
+      const currentTime = Date.now();
+      const refundWindow = 5 * 60 * 1000;
+
+      if (currentTime - deliveredTime > refundWindow) {
+        return response.error(res, {
+          message:
+            "Refund window expired. Refunds are only allowed within 5 minutes after delivery.",
+        });
       }
 
-      product.status = "Refunded";
-      product.refund = true;
-      product.refundreason = req.body.reason;
-      product.refundamount = req.body.amount;
-      product.refundby = req.user.id;
+      const orderedProduct = order.productDetail.find(
+        (item) => item.product.toString() === productId
+      );
+      if (!orderedProduct) {
+        return response.error(res, { message: "Product not found in order" });
+      }
 
-      product.refunddate = new Date();
-      await product.save();
+      const refundAmount = orderedProduct.price || 0;
 
-      await User.findByIdAndUpdate(
-        product.user,
-        { $inc: { wallet: Number(product.refundamount) } },
-        { new: true, upsert: true }
-      );
-      await User.findByIdAndUpdate(
-        product.seller_id,
-        { $inc: { wallet: -Number(product.refundamount) } },
-        { new: true, upsert: true }
-      );
-      
-      await mailNotification.sendMail(
-        product.user,
-        "Refund Request",
-        `Your refund request has been processed successfully. Amount: ${product.refundamount}`
-      );
-      await mailNotification.sendMail(
-        product.seller_id,
-        "Refund Request",
-        `A refund request has been processed for your order. Amount: ${product.refundamount}`
-      );
+      order.status = "Refunded";
+      order.refund = true;
+      order.refundamount = refundAmount;
+      // order.refundby = req.user.id;
+      order.refundreason = reason;
+      order.refundproof = refundProof;
+      order.refunddate = new Date();
+      await order.save();
 
-      return response.ok(res, product);
+      // await User.findByIdAndUpdate(
+      //   order.user,
+      //   { $inc: { wallet: Number(refundAmount) } },
+      //   { new: true }
+      // );
+
+      // await User.findByIdAndUpdate(
+      //   order.seller_id,
+      //   { $inc: { wallet: -Number(refundAmount) } },
+      //   { new: true }
+      // );
+
+      // await mailNotification.sendMail(
+      //   order.user,
+      //   "Refund Processed",
+      //   `Your refund request has been processed successfully. Amount: ₹${refundAmount}`
+      // );
+
+      // await mailNotification.sendMail(
+      //   order.seller_id,
+      //   "Order Refunded",
+      //   `A refund has been processed for one of your orders. Amount: ₹${refundAmount}`
+      // );
+
+      return response.ok(res, {data:order, message: "Your refund request has been processed successfully"});
     } catch (error) {
       return response.error(res, error);
     }
@@ -672,7 +714,7 @@ module.exports = {
         cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
       }
 
-      if (req.body.type){
+      if (req.body.type) {
         cond.status = req.body.type;
       }
 
@@ -901,7 +943,9 @@ module.exports = {
             },
           },
         },
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, orders);
     } catch (err) {
       return response.error(res, err);
@@ -912,7 +956,9 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: { $ne: "Delivered" },
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -1139,42 +1185,47 @@ module.exports = {
     } catch (error) {
       return res.status(500).json({ message: error.message });
     }
-},
-getOrderByEmployee: async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:'Pending'})
-      .populate("user", "-password -varients")
-      .populate("productDetail.product")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+  },
+  getOrderByEmployee: async (req, res) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const product = await ProductRequest.find({
+        assignedEmployee: req.user.id,
+        status: "Pending",
+      })
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-    return res.status(200).json({
-      status: true,
-      data: product,
-    });
-  } catch (error) {
-    return response.error(res, error);
-  }
-},
-getOrderHistoryByEmployee: async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:{$ne:'Pending'}})
-      .populate("user", "-password -varients")
-      .populate("productDetail.product")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      return res.status(200).json({
+        status: true,
+        data: product,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  getOrderHistoryByEmployee: async (req, res) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const product = await ProductRequest.find({
+        assignedEmployee: req.user.id,
+        status: { $ne: "Pending" },
+      })
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-    return res.status(200).json({
-      status: true,
-      data: product,
-    });
-  } catch (error) {
-    return response.error(res, error);
-  }
-},
-  }
-
+      return res.status(200).json({
+        status: true,
+        data: product,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+};
