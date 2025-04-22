@@ -255,6 +255,11 @@ router.post(
     isAuthenticated(["ADMIN"]),
     product.getSellerOrderByAdmin
 );
+router.post(
+    "/getSellerReturnOrderByAdmin",
+    isAuthenticated(["ADMIN"]),
+    product.getSellerReturnOrderByAdmin
+);
 router.get(
     "/getSellerProductByAdmin",
     isAuthenticated(["ADMIN"]),

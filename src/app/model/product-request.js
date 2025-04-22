@@ -102,20 +102,26 @@ const productrequestchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+    return: {
+      type: Boolean,
+    },
     refund: {
       type: Boolean,
-      default: false,
     },
-    refundAmount: {
+    returnAmount: {
       type: Number,
     },
-    refundreason: { type: String },
-    refundproof: { type: String },    
-    refundStatus: {
+    returnreason: { type: String },
+    returnproof: [{ type: String }],    
+    returnStatus: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected"],
+      enum: ["Pending", "Approved", "Rejected", "Refunded"],
     },
-    refunddate: {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+    returndate: {
       type: Date,
     },
   },

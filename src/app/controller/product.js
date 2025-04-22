@@ -543,9 +543,13 @@ module.exports = {
     try {
       const productId = req.body.product_id;
 
-      const {reason, refundProof} = req.body;
+      const { reason, refundProof } = req.body;
 
-      const order = await ProductRequest.findById(req.params.id);
+      const order = await ProductRequest.findById(req.params.id).populate(
+        "seller_id",
+        "username email"
+      );
+
       if (!order) {
         return response.error(res, { message: "Order not found" });
       }
@@ -556,7 +560,7 @@ module.exports = {
 
       if (order.status !== "Delivered" || !order.deliveredAt) {
         return response.error(res, {
-          message: "Refund is allowed only after delivery",
+          message: "Return is allowed only after delivery",
         });
       }
 
@@ -572,12 +576,12 @@ module.exports = {
 
       const deliveredTime = new Date(order.deliveredAt).getTime();
       const currentTime = Date.now();
-      const refundWindow = 5 * 60 * 1000;
+      const refundWindow = 15 * 60 * 1000;
 
       if (currentTime - deliveredTime > refundWindow) {
         return response.error(res, {
           message:
-            "Refund window expired. Refunds are only allowed within 5 minutes after delivery.",
+            "Return window expired. Returns are only allowed within 15 minutes after delivery.",
         });
       }
 
@@ -588,42 +592,53 @@ module.exports = {
         return response.error(res, { message: "Product not found in order" });
       }
 
-      const refundAmount = orderedProduct.price || 0;
+      const returnAmount = orderedProduct.price || 0;
 
-      order.status = "Refunded";
-      order.refund = true;
-      order.refundamount = refundAmount;
+      // order.status = "Refunded";
+      order.status = "Return-requested";
+      order.return = true;
+      order.returnAmount = returnAmount;
       // order.refundby = req.user.id;
-      order.refundreason = reason;
-      order.refundproof = refundProof;
-      order.refunddate = new Date();
-      await order.save();
+      order.returnreason = reason;
+      order.returnproof = refundProof;
+      order.returndate = new Date();
+      order.returnstatus = "Pending";
+      order.productId = productId;
 
       // await User.findByIdAndUpdate(
       //   order.user,
-      //   { $inc: { wallet: Number(refundAmount) } },
+      //   { $inc: { wallet: Number(returnAmount) } },
       //   { new: true }
       // );
 
       // await User.findByIdAndUpdate(
       //   order.seller_id,
-      //   { $inc: { wallet: -Number(refundAmount) } },
+      //   { $inc: { wallet: -Number(returnAmount) } },
       //   { new: true }
       // );
 
       // await mailNotification.sendMail(
       //   order.user,
       //   "Refund Processed",
-      //   `Your refund request has been processed successfully. Amount: ₹${refundAmount}`
+      //   `Your refund request has been processed successfully. Amount: ₹${returnAmount}`
       // );
 
-      // await mailNotification.sendMail(
-      //   order.seller_id,
+      await mailNotification.returnMail({
+        email: order.seller_id.email,
+        returnAmount: returnAmount,
+      });
+      // await mailNotification.returnMail({
+      //   email: order.seller_id.email,
       //   "Order Refunded",
-      //   `A refund has been processed for one of your orders. Amount: ₹${refundAmount}`
-      // );
+      //   `A refund has been processed for one of your orders. Amount: ₹${returnAmount}`
+      // });
 
-      return response.ok(res, {data:order, message: "Your refund request has been processed successfully"});
+      await order.save();
+
+      return response.ok(res, {
+        data: order,
+        message: "Your refund request has been processed successfully",
+      });
     } catch (error) {
       return response.error(res, error);
     }
@@ -634,12 +649,12 @@ module.exports = {
       let cond = {};
       const { curDate } = req.body;
 
-      // if (req.user.type === "SELLER") {
-      //   cond = {
-      //     seller_id: req.user.id,
-      //     status: { $in: ["Pending", "Packed"] },
-      //   };
-      // }
+      if (req.user.type === "SELLER") {
+        cond = {
+          seller_id: req.user.id,
+          status: { $in: ["Pending", "Packed"] },
+        };
+      }
 
       if (curDate) {
         cond.createdAt = {
@@ -714,8 +729,8 @@ module.exports = {
         cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
       }
 
-      if (req.body.type) {
-        cond.status = req.body.type;
+      if (req.body.returnOrders) {
+        cond.return = req.body.returnOrders;
       }
 
       let page = parseInt(req.query.page) || 1;
@@ -726,6 +741,7 @@ module.exports = {
         .populate("user", "-password -varients")
         .populate("productDetail.product")
         .populate("seller_id", "-password")
+        .populate("productId", "-price_slot")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -752,6 +768,97 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  getSellerReturnOrderByAdmin: async (req, res) => {
+    try {
+      let cond = {};
+      const { curDate, curentDate, returnOrders } = req.body;
+  
+      if (curDate) {
+        cond.createdAt = {
+          $gte: new Date(`${curDate}T00:00:00.000Z`),
+          $lt: new Date(`${curDate}T23:59:59.999Z`),
+        };
+      }
+  
+      if (curentDate) {
+        const startDate = new Date(curentDate);
+        const endDate = new Date(new Date(curentDate).setDate(startDate.getDate() + 1));
+        cond.createdAt = { $gte: startDate, $lt: endDate };
+      }
+  
+      // if (returnOrders) {
+      //   cond.return = returnOrders;
+      // }
+
+      if (req.body.returnOrders) {
+        cond.return = req.body.returnOrders;
+      }
+
+      console.log(cond)
+
+      // if (req.user?.seller_id) {
+      //   cond.seller_id = req.user.seller_id;
+      // }
+  
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+  
+      const orders = await ProductRequest.find(cond)
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .populate("seller_id", "-password")
+        .populate("productId", "-price_slot")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+        // console.log(orders)
+  
+        const filteredOrders = orders
+        .map((order, index) => {
+          const orderObj = order.toObject?.() || order;
+      
+          // Log full productDetail for debugging
+          console.log("OrderID:", orderObj._id, "ProductDetails:", orderObj.productDetail);
+      
+          const returnedItems = orderObj.productDetail?.filter(
+            (item) => item?.returned === true // <- Is this field present?
+          ) || [];
+      
+          if (returnedItems.length > 0) {
+            return {
+              ...orderObj,
+              indexNo: skip + index + 1,
+              productDetail: returnedItems,
+            };
+          }
+      
+          return null;
+        })
+        .filter(Boolean); // Remove nulls
+      
+
+        console.log(filteredOrders)
+  
+      const totalOrders = await ProductRequest.countDocuments(cond);
+      const totalPages = Math.ceil(totalOrders / limit);
+  
+      return res.status(200).json({
+        status: true,
+        data: filteredOrders,
+        pagination: {
+          totalItems: totalOrders,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      console.error("Error in getSellerOrderByAdmin:", error);
+      return response.error(res, error);
+    }
+  },
   getSellerProductByAdmin: async (req, res) => {
     try {
       let page = parseInt(req.query.page) || 1;
@@ -766,7 +873,7 @@ module.exports = {
         .limit(limit);
 
       // return response.ok(res, product);
-      let totalProducts = await Product.countDocuments(); // Count total products matching the criteria
+      let totalProducts = await Product.countDocuments(); 
       const totalPages = Math.ceil(totalProducts / limit);
 
       return res.status(200).json({
