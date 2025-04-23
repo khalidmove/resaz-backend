@@ -18,6 +18,8 @@ const generateUniqueId = require("generate-unique-id");
 const Tax = require("../model/tax");
 const Setting = mongoose.model("Setting");
 const jwt = require("jsonwebtoken");
+const Product = mongoose.model("Product");
+const ProductRequest = mongoose.model("ProductRequest");
 
 module.exports = {
   // login controller
@@ -1340,7 +1342,7 @@ module.exports = {
           }),
         };
       } else {
-        return response.unauthorized(res, {
+        return response.unAuthorize(res, {
           message: "Unauthorized access to dashboard stats",
         });
       }
@@ -1349,6 +1351,49 @@ module.exports = {
     } catch (error) {
       return response.error(res, error);
     }
-  }  
+  },
 
+  getSellerStats: async (req, res) => {
+    try {
+      const { sellerId } = req.query;
+      // const loggedInUserId = req.user.id;
+      // const loggedInUser = await User.findById(loggedInUserId).select("-password");
+  
+      // if (!loggedInUser) {
+      //   return response.notFound(res, { message: "User not found" });
+      // }
+  
+      // const targetSellerId = loggedInUser.type === "ADMIN" && sellerId
+      //   ? sellerId
+      //   : loggedInUser.type === "SELLER"
+      //   ? loggedInUserId
+      //   : null;
+  
+      // if (!targetSellerId) {
+      //   return response.unAuthorize(res, { message: "Access denied" });
+      // }
+  
+      const seller = await User.findById(sellerId).select("-password");
+  
+      // if (!seller || seller.type !== "SELLER") {
+      //   return response.notFound(res, { message: "Seller not found" });
+      // }
+  
+      const stats = {
+        sellerInfo: seller,
+        totalOrders: await ProductRequest.countDocuments({ seller_id: sellerId }),
+        totalProducts: await Product.countDocuments({ vendor_id: targetSellerId }),
+        totalCustomers: await User.countDocuments({
+          type: "USER",
+          parent_vendor_id: targetSellerId,
+        }),
+      };
+  
+      return response.ok(res, stats);
+    } catch (error) {
+      console.error("Error in getSellerStats:", error);
+      return response.error(res, error);
+    }
+  }
+  
 };

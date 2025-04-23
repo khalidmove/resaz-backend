@@ -257,7 +257,7 @@ router.post(
 );
 router.post(
     "/getSellerReturnOrderByAdmin",
-    isAuthenticated(["ADMIN"]),
+    isAuthenticated(["ADMIN", "SELLER"]),
     product.getSellerReturnOrderByAdmin
 );
 router.get(
@@ -419,6 +419,8 @@ router.get("/getEmployeeById/:id", isAuthenticated(["SELLER"]), user.getEmployee
 // router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 router.get("/getSellerEmployeeByAdmin", isAuthenticated(["ADMIN"]), user.getSellerEmployeeByAdmin);
+
+router.get("/getSellerStats/:sellerId", isAuthenticated(["ADMIN", "SELLER"]), user.getSellerStats);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
