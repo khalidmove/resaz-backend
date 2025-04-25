@@ -19,12 +19,21 @@ const getintouch = new mongoose.Schema(
     },
     read: {
       type: Boolean,
-      default: false
+      default: false,
     },
     reason: { type: String, required: true },
     status: {
       type: String,
-      enum: ["pending", "resolved", "processing"],
+      // enum: [
+      //   "pending",
+      //   "resolved",
+      //   "processing",
+      //   "refunded",
+      //   "reissued",
+      //   "reinstated",
+      //   "returned",
+      //   "re-ordered",
+      // ],
       default: "pending",
     },
   },

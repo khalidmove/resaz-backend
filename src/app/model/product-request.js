@@ -39,10 +39,35 @@ const productrequestchema = new mongoose.Schema(
           type: Number,
         },
         price_slot: {
-          value: {type:Number},
-          unit: {type:String},
-          our_price: {type:Number},
-          other_price: {type:Number},
+          value: { type: Number },
+          unit: { type: String },
+          our_price: { type: Number },
+          other_price: { type: Number },
+        },
+        // return and refund related
+        isReturnable: { type: Boolean}, // capture it from product at order time
+        returnDetails: {
+          isReturned: { type: Boolean, default: false}, // for return request
+          isRefunded: { type: Boolean, default: false}, // for refund request
+          returnRequestDate: Date, // for return request date
+          returnDate: Date, // for return date when product is picked up again by seller
+          returnStatus: {
+            type: String,
+            enum: [
+              "Pending",
+              "Approved",
+              "Rejected",
+              "Refunded",
+              "Auto-Refunded",
+              "Return-requested",
+              "Completed",
+            ],
+          }, // status of the return and refund
+          reason: String, // reason for return and refund
+          proofImages: [String], // images for proof of return and refund
+          refundAmount: Number, // amount to be refunded
+          refundedAt: Date, // date when refund is processed
+          refundWithoutReturn: { type: Boolean}, // for refund without return ----> for auto-refund
         },
       },
     ],
@@ -64,7 +89,7 @@ const productrequestchema = new mongoose.Schema(
     },
     onthewaytodelivery: {
       type: Boolean,
-      default:false
+      default: false,
     },
     shipping_address: {
       type: Object,
@@ -102,6 +127,29 @@ const productrequestchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+
+    // return: {
+    //   type: Boolean,
+    // },
+    // refund: {
+    //   type: Boolean,
+    // },
+    // returnAmount: {
+    //   type: Number,
+    // },
+    // returnreason: { type: String },
+    // returnproof: [{ type: String }],
+    // returnStatus: {
+    //   type: String,
+    //   enum: ["Pending", "Approved", "Rejected", "Refunded"],
+    // },
+    // productId: [{
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Product",
+    // }],
+    // returndate: {
+    //   type: Date,
+    // },
   },
   {
     timestamps: true,
