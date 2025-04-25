@@ -398,12 +398,29 @@ module.exports = {
   requestProduct: async (req, res) => {
     try {
       const payload = req?.body || {};
-      // payload.user = req.user.id
       const sellersNotified = new Set();
       const sellerOrders = {};
-      // payload.productDetail.forEach(async(item) => {
+
+      const productIds = payload.productDetail.map((item) => item.product);
+      const products = await Product.find({ _id: { $in: productIds } }).select(
+        "category"
+      );
+      const categoryIds = products.map((p) => p.category);
+      const categories = await Category.find({
+        _id: { $in: categoryIds },
+      }).select("isReturnable");
+
+      const productCategoryMap = new Map();
+      products.forEach((product) => {
+        const category = categories.find((c) => c._id.equals(product.category));
+        productCategoryMap.set(
+          product._id.toString(),
+          category?.isReturnable ?? true
+        );
+      });
+
       for (const item of payload.productDetail) {
-        const sellerId = item.seller_id?.toString(); // Assuming seller_id is sent inside productDetail
+        const sellerId = item.seller_id?.toString();
         if (!sellerId) return;
 
         if (!sellerOrders[sellerId]) {
@@ -429,24 +446,25 @@ module.exports = {
           sellersNotified.add(sellerId);
         }
 
+        const isReturnable = productCategoryMap.get(item.product.toString());
+
         sellerOrders[sellerId].productDetail.push({
           product: item.product,
           image: item.image,
           qty: item.qty,
           price: item.price,
-          price_slot:item.price_slot,
+          price_slot: item.price_slot,
+          isReturnable,
         });
 
         // Calculate total price for this product
         sellerOrders[sellerId].total += item.qty * item.price;
       }
-      // );
-      console.log("sellerOrders", sellerOrders);
 
       const savedOrders = [];
       for (const sellerId in sellerOrders) {
         // Calculate tax before saving
-        const taxData = await Tax.findOne(); // global tax or adjust per seller
+        const taxData = await Tax.findOne();
         const taxRate = taxData?.taxRate || 0;
         const baseTotal = sellerOrders[sellerId].total;
         const taxAmount = (baseTotal * taxRate) / 100;
@@ -539,6 +557,124 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  refundProduct: async (req, res) => {
+    try {
+      const productId = req.body.product_id;
+      const { reason, refundProof } = req.body;
+
+      const order = await ProductRequest.findById(req.params.id).populate(
+        "seller_id",
+        "username email"
+      );
+
+      if (!order) {
+        return response.error(res, { message: "Order not found" });
+      }
+
+      if (order.status === "Refunded") {
+        return response.error(res, { message: "Product already refunded" });
+      }
+
+      if (order.status !== "Delivered" || !order.deliveredAt) {
+        return response.error(res, {
+          message: "Return is allowed only after delivery",
+        });
+      }
+
+      const deliveredTime = new Date(order.deliveredAt).getTime();
+      const currentTime = Date.now();
+      const refundWindow = 15 * 60 * 1000;
+
+      if (currentTime - deliveredTime > refundWindow) {
+        return response.error(res, {
+          message:
+            "Return window expired. Returns are only allowed within 15 minutes after delivery.",
+        });
+      }
+
+      const orderedProduct = order.productDetail.find(
+        (item) => item.product.toString() === productId
+      );
+
+      if (!orderedProduct) {
+        return response.error(res, { message: "Product not found in order" });
+      }
+
+      const returnAmount = orderedProduct.price || 0;
+
+      const isReturnable = orderedProduct?.isReturnable ?? true;
+
+      if (!isReturnable) {
+        // order.status = "Refund-Requested";
+        orderedProduct.returnDetails.returnStatus = "Auto-Refunded";
+        orderedProduct.returnDetails.isRefunded = true;
+        orderedProduct.returnDetails.returnRequestDate = new Date();
+        orderedProduct.returnDetails.reason = reason;
+        orderedProduct.returnDetails.proofImages = refundProof;
+
+        // order.returnAmount = returnAmount;
+        // order.refundby = req.user.id;
+        // order.returnreason = "Auto-refunded: non-returnable item";
+        // order.returnproof = refundProof || null;
+        // order.returndate = new Date();
+        // order.returnstatus = "Refunded";
+        // order.refundedWithoutReturn = true;
+
+        // await User.findByIdAndUpdate(
+        //   order.user,
+        //   { $inc: { wallet: Number(returnAmount) } },
+        //   { new: true }
+        // );
+
+        // await User.findByIdAndUpdate(
+        //   order.seller_id._id,
+        //   { $inc: { wallet: -Number(returnAmount) } },
+        //   { new: true }
+        // );
+
+        // await mailNotification.sendMail(
+        //   order.user,
+        //   "Refund Requested",
+        //   `Your refund for a non-returnable item was processed successfully. Amount: ₹${returnAmount}`
+        // );
+        await mailNotification.returnMail({
+          email: order.seller_id.email,
+          returnAmount: returnAmount,
+        });
+      } else {
+        // order.status = "Return-requested";
+        orderedProduct.returnDetails.returnStatus = "Return-requested";
+        orderedProduct.returnDetails.isReturned = true;
+        orderedProduct.returnDetails.returnRequestDate = new Date();
+        orderedProduct.returnDetails.reason = reason;
+        orderedProduct.returnDetails.proofImages = refundProof;
+
+        // order.return = true;
+        // order.returnAmount = returnAmount;
+        // order.returnreason = reason;
+        // order.returnproof = refundProof;
+        // order.returndate = new Date();
+        // order.returnstatus = "Pending";
+        // order.productId = productId;
+      }
+
+      await mailNotification.returnMail({
+        email: order.seller_id.email,
+        returnAmount: returnAmount,
+      });
+
+      console.log(order);
+
+      await order.save();
+
+      return response.ok(res, {
+        data: order,
+        message: "Your refund request has been processed successfully",
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
 
   getOrderBySeller: async (req, res) => {
     try {
@@ -550,6 +686,7 @@ module.exports = {
           seller_id: req.user.id,
           assignedEmployee: { $exists: false },
           // status: { $in: ["Pending", "Packed"] }
+          status: { $in: ["Pending", "Packed"] },
         };
       }
 
@@ -608,7 +745,7 @@ module.exports = {
   getSellerOrderByAdmin: async (req, res) => {
     try {
       let cond = {};
-      const { curDate } = req.body;
+      const { curDate, sellerName, customerName, returnOrders } = req.body;
 
       if (curDate) {
         cond.createdAt = {
@@ -625,9 +762,32 @@ module.exports = {
         );
         cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
       }
+  
+      if (customerName) {
+        const user = await User.findOne({
+          username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
+        });
+  
+        if (user) {
+          cond["user"] = user._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+        }
+      }
+      if (sellerName) {
+        const seller = await User.findOne({
+          username: new RegExp("^" + sellerName.trim(), "i"), // Case-insensitive search
+        });
 
-      if (req.body.type){
-        cond.status = req.body.type;
+        if (seller) {
+          cond["seller_id"] = seller._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+        }
+      }
+
+      if (req.body.returnOrders) {
+        cond.return = req.body.returnOrders;
       }
 
       let page = parseInt(req.query.page) || 1;
@@ -664,6 +824,115 @@ module.exports = {
       return response.error(res, error);
     }
   },
+  getSellerReturnOrderByAdmin: async (req, res) => {
+    try {
+      let cond = {};
+      const { curDate, curentDate, sellerName, customerName } = req.body;
+
+      if (curDate) {
+        cond.createdAt = {
+          $gte: new Date(`${curDate}T00:00:00.000Z`),
+          $lt: new Date(`${curDate}T23:59:59.999Z`),
+        };
+      }
+
+      if (curentDate) {
+        const startDate = new Date(curentDate);
+        const endDate = new Date(
+          new Date(curentDate).setDate(startDate.getDate() + 1)
+        );
+        cond.createdAt = { $gte: startDate, $lt: endDate };
+      }
+
+      if (req.user.type === "SELLER") {
+        cond.seller_id = req.user.id;
+      }
+
+      if (customerName) {
+        const user = await User.findOne({
+          username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
+        });
+  
+        if (user) {
+          cond["user"] = user._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+        }
+      }
+      if (sellerName) {
+        const seller = await User.findOne({
+          username: new RegExp("^" + sellerName.trim(), "i"), // Case-insensitive search
+        });
+
+        if (seller) {
+          cond["seller_id"] = seller._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+        }
+      }
+
+      cond.productDetail = {
+        $elemMatch: {
+          returnDetails: { $exists: true },
+          $or: [
+            { "returnDetails.isReturned": true },
+            { "returnDetails.isRefunded": true },
+          ],
+        },
+      };
+
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      const orders = await ProductRequest.find(cond)
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .populate("seller_id", "-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const filteredOrders = orders
+        .map((order, index) => {
+          const orderObj = order.toObject?.() || order;
+
+          const returnedItems =
+            orderObj.productDetail?.filter(
+              (item) => item.returnDetails?.isReturned === true
+            ) || [];
+
+          if (returnedItems.length > 0) {
+            return {
+              ...orderObj,
+              indexNo: skip + index + 1,
+              productDetail: returnedItems,
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      const totalOrders = await ProductRequest.countDocuments(cond);
+      const totalPages = Math.ceil(totalOrders / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: filteredOrders,
+        pagination: {
+          totalItems: totalOrders,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      console.error("Error in getSellerReturnOrderByAdmin:", error);
+      return response.error(res, error);
+    }
+  },
+
   getSellerProductByAdmin: async (req, res) => {
     try {
       let page = parseInt(req.query.page) || 1;
@@ -678,7 +947,7 @@ module.exports = {
         .limit(limit);
 
       // return response.ok(res, product);
-      let totalProducts = await Product.countDocuments(); // Count total products matching the criteria
+      let totalProducts = await Product.countDocuments();
       const totalPages = Math.ceil(totalProducts / limit);
 
       return res.status(200).json({
@@ -856,7 +1125,9 @@ module.exports = {
             },
           },
         },
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, orders);
     } catch (err) {
       return response.error(res, err);
@@ -867,7 +1138,9 @@ module.exports = {
       const product = await ProductRequest.find({
         driver_id: req.user.id,
         status: { $ne: "Delivered" },
-      }).sort({ createdAt: -1 }).populate("user", "-password");
+      })
+        .sort({ createdAt: -1 })
+        .populate("user", "-password");
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -1134,5 +1407,4 @@ getOrderHistoryByEmployee: async (req, res) => {
     return response.error(res, error);
   }
 },
-  }
-
+};

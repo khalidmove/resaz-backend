@@ -1,4 +1,12 @@
 const nodemailer = require("nodemailer");
+// const { default: currencySign } = require("./currencySign");
+
+function currencySign(amount) {
+  if (amount == null || isNaN(amount)) {
+      return '₹0';
+  }
+  return `₹${amount}`;
+}
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -101,6 +109,15 @@ module.exports = {
       return await sendMail(email, "Your Profile Was Updated", html);
     } catch (err) {
       throw new Error("Could not send update notification email");
+    }
+  }, 
+  returnMail: async ({ email, returnAmount }) => {
+    try {
+      const html = `A refund has been processed for one of your orders. Amount: ${currencySign(returnAmount)}`;
+      return await sendMail(email, "Order Returned", html);
+    } catch (err) {
+      console.error("Mail error:", err);
+      throw new Error("Could not send mail");
     }
   }
   

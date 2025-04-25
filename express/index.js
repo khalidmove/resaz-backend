@@ -20,6 +20,8 @@ require('./db');
 require('./passport')(passport);
 //Routes configuration
 require("./../src/routes")(app);
+// Jobs configuration
+require('../src/jobs/expireReferralPoints');
 
 
 module.exports = app;

@@ -18,6 +18,9 @@ const generateUniqueId = require("generate-unique-id");
 const Tax = require("../model/tax");
 const Setting = mongoose.model("Setting");
 const jwt = require("jsonwebtoken");
+const Product = mongoose.model("Product");
+const ProductRequest = mongoose.model("ProductRequest");
+const ExcelJS = require("exceljs");
 
 module.exports = {
   // login controller
@@ -112,12 +115,48 @@ module.exports = {
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();
+        // if (payload?.referal) {
+        //   const refuser = await User.findOne({ referal: payload.referal });
+        //   const setting = await Setting.findOne();
+        //   refuser.referalpoints =
+        //     (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint);
+        //   await refuser.save();
+        // }
         if (payload?.referal) {
           const refuser = await User.findOne({ referal: payload.referal });
           const setting = await Setting.findOne();
-          refuser.referalpoints =
-            (Number(refuser.referalpoints) || 0) + Number(setting.referelpoint);
-          await refuser.save();
+
+          if (refuser && setting) {
+            user.referredBy = refuser._id;
+            const referredUsersCount = await User.countDocuments({
+              referredBy: refuser._id,
+            });
+
+            let points = 0;
+
+            if (referredUsersCount < 100) {
+              points = 100;
+            } else if (referredUsersCount < 150) {
+              points = 120;
+            } else if (referredUsersCount < 200) {
+              points = 150;
+            } else {
+              points = 200;
+            }
+
+            refuser.referalpoints =
+              (Number(refuser.referalpoints) || 0) + points;
+
+            if (!refuser.pointHistory) refuser.pointHistory = [];
+
+            refuser.pointHistory.push({
+              points,
+              earnedAt: new Date(),
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year later
+            });
+
+            await refuser.save();
+          }
         }
         // await mailNotification.welcomeMail(user)
         res.status(200).json({ success: true, data: user });
@@ -430,9 +469,24 @@ module.exports = {
       let limit = parseInt(req.query.limit) || 10;
       let skip = (page - 1) * limit;
 
-      let user = await User.aggregate([
+      const search = req.query.search?.trim() || null;
+
+      const matchStage = {
+        type: "SELLER",
+      };
+
+      if (search) {
+        const searchRegex = new RegExp(search, "i");
+        matchStage.$or = [
+          { name: { $regex: searchRegex } },
+          { email: { $regex: searchRegex } },
+          { number: { $regex: searchRegex } },
+        ];
+      }
+
+      let users = await User.aggregate([
         {
-          $match: { type: "SELLER" },
+          $match: matchStage,
         },
         {
           $lookup: {
@@ -460,26 +514,101 @@ module.exports = {
         .skip(skip)
         .limit(limit);
 
-      const indexedUser = user.map((item, index) => ({
-        ...(item.toObject?.() || item),
-        indexNo: skip + index + 1,
-      }));
+      // Attach stats to each seller individually
+      const indexedUsers = await Promise.all(
+        users.map(async (user, index) => {
+          const sellerId = user._id;
+
+          const [totalOrders, totalProducts, totalEmployees, incomeTaxStats] =
+            await Promise.all([
+              ProductRequest.countDocuments({ seller_id: sellerId }),
+              Product.countDocuments({ userid: sellerId }),
+              User.countDocuments({
+                type: "EMPLOYEE",
+                parent_vendor_id: sellerId,
+              }),
+              ProductRequest.aggregate([
+                {
+                  $match: { seller_id: new mongoose.Types.ObjectId(sellerId) },
+                },
+                {
+                  $group: {
+                    _id: null,
+                    totalIncome: { $sum: { $ifNull: ["$total", 0] } },
+                    totalTax: { $sum: { $ifNull: ["$tax", 0] } },
+                  },
+                },
+              ]),
+            ]);
+
+          const returnRefundStats = await ProductRequest.aggregate([
+            { $match: { seller_id: new mongoose.Types.ObjectId(sellerId) } },
+            { $unwind: "$productDetail" },
+            {
+              $group: {
+                _id: null,
+                returnedItems: {
+                  $sum: {
+                    $cond: ["$productDetail.returnDetails.isReturned", 1, 0],
+                  },
+                },
+                refundedItems: {
+                  $sum: {
+                    $cond: ["$productDetail.returnDetails.isRefunded", 1, 0],
+                  },
+                },
+                totalRefundAmount: {
+                  $sum: {
+                    $cond: [
+                      "$productDetail.returnDetails.isRefunded",
+                      {
+                        $ifNull: [
+                          "$productDetail.returnDetails.refundAmount",
+                          0,
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ]);
+
+          const stats = {
+            totalOrders,
+            totalProducts,
+            totalEmployees,
+            returnedItems: returnRefundStats[0]?.returnedItems || 0,
+            refundedItems: returnRefundStats[0]?.refundedItems || 0,
+            totalRefundAmount: returnRefundStats[0]?.totalRefundAmount || 0,
+            totalIncome: incomeTaxStats[0]?.totalIncome || 0,
+            totalTax: incomeTaxStats[0]?.totalTax || 0,
+          };
+
+          return {
+            ...(user.toObject?.() || user),
+            indexNo: skip + index + 1,
+            stats,
+          };
+        })
+      );
 
       const totalUsers = await User.countDocuments({ type: "SELLER" });
       const totalPages = Math.ceil(totalUsers / limit);
 
-      // return response.ok(res, user);
       return res.status(200).json({
         status: true,
-        data: indexedUser,
+        data: indexedUsers,
         pagination: {
           totalItems: totalUsers,
-          totalPages: totalPages,
+          totalPages,
           currentPage: page,
           itemsPerPage: limit,
         },
       });
     } catch (error) {
+      console.error("Error in getSellerList:", error);
       return response.error(res, error);
     }
   },
@@ -1158,7 +1287,13 @@ module.exports = {
   deleteEmployee: async (req, res) => {
     try {
       const employeeId = req.params.id;
-      const vendorId = req.user.id;
+      let vendorId;
+
+      if (req.user.type === "ADMIN"){
+        vendorId = req.body.vendor
+      } else {
+        vendorId = req.user.id
+      }
 
       const employee = await User.findById(employeeId);
 
@@ -1170,13 +1305,14 @@ module.exports = {
         !employee.parent_vendor_id ||
         employee.parent_vendor_id.toString() !== vendorId
       ) {
-        return response.forbidden(res, { message: "Unauthorized" });
+        return response.error(res, { message: "Unauthorized" });
       }
 
       await employee.deleteOne();
 
       return response.ok(res, { message: "Employee deleted successfully" });
     } catch (error) {
+      console.log(error)
       return response.error(res, error);
     }
   },
@@ -1236,25 +1372,74 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
-      const employees = await User.find({
-        type: "EMPLOYEE",
-        // parent_vendor_id: req.params.id,
-      })
-        .select("-password")
-        .populate("parent_vendor_id", "username")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+      let matchStage  = {type:"EMPLOYEE"};
+
+      if (req.query.curDate) {
+        const newEt = new Date(
+          new Date(req.query.curDate).setDate(
+            new Date(req.query.curDate).getDate() + 1
+          )
+        );
+        matchStage.createdAt = { $gte: new Date(req.query.curDate), $lte: newEt };
+      }   
+
+      const search = req.query.search?.trim() || null;
+
+      const pipeline = [
+        {
+          $match: matchStage,
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "parent_vendor_id",
+            foreignField: "_id",
+            as: "parent_vendor",
+          },
+        },
+        {
+          $unwind: "$parent_vendor",
+        },
+      ];
+      
+      // Add search condition
+      if (search) {
+        const searchRegex = new RegExp(search, "i");
+        pipeline.push({
+          $match: {
+            $or: [
+              { name: { $regex: searchRegex } },
+              { "parent_vendor.username": { $regex: searchRegex } },
+            ],
+          },
+        });
+      }
+      
+      pipeline.push(
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            password: 0,
+            "parent_vendor.password": 0,
+          },
+        }
+      );
+      
+      const employees = await User.aggregate(pipeline);
 
       const indexedEmployees = employees.map((item, index) => ({
         ...(item.toObject?.() || item),
         indexNo: skip + index + 1,
       }));
 
-      const totalEmployees = await User.countDocuments({
-        type: "EMPLOYEE",
-        parent_vendor_id: req.params.id,
-      });
+      // const totalEmployees = await User.countDocuments({
+      //   type: "EMPLOYEE",
+      //   parent_vendor_id: req.params.id,
+      // });
+
+      const totalEmployees = await User.countDocuments(matchStage);
 
       const totalPages = Math.ceil(totalEmployees / limit);
       return res.status(200).json({
@@ -1276,13 +1461,13 @@ module.exports = {
     try {
       const userId = req.user.id;
       const user = await User.findById(userId).select("-password");
-  
+
       if (!user) {
         return response.notFound(res, { message: "User not found" });
       }
-  
+
       let stats;
-  
+
       if (user.type === "ADMIN") {
         // Admin gets global stats
         stats = {
@@ -1307,15 +1492,458 @@ module.exports = {
           }),
         };
       } else {
-        return response.unauthorized(res, {
+        return response.unAuthorize(res, {
           message: "Unauthorized access to dashboard stats",
         });
       }
-  
+
       return response.ok(res, stats);
     } catch (error) {
       return response.error(res, error);
     }
-  }  
+  },
+  getSellerStats: async (req, res) => {
+    try {
+      const { sellerId } = req.params;
 
+      const seller = await User.findById(sellerId).select(
+        "_id username email number type status"
+      );
+
+      const totalOrders = await ProductRequest.countDocuments({
+        seller_id: sellerId,
+      });
+      const totalProducts = await Product.countDocuments({ userid: sellerId });
+      const totalEmployees = await User.countDocuments({
+        type: "EMPLOYEE",
+        parent_vendor_id: sellerId,
+      });
+
+      // Aggregate for returned items, refunded items, and total refund amount
+      const returnRefundStats = await ProductRequest.aggregate([
+        { $match: { seller_id: new mongoose.Types.ObjectId(sellerId) } },
+        { $unwind: "$productDetail" },
+        {
+          $group: {
+            _id: null,
+            returnedItems: {
+              $sum: {
+                $cond: ["$productDetail.returnDetails.isReturned", 1, 0],
+              },
+            },
+            refundedItems: {
+              $sum: {
+                $cond: ["$productDetail.returnDetails.isRefunded", 1, 0],
+              },
+            },
+            totalRefundAmount: {
+              $sum: {
+                $cond: [
+                  "$productDetail.returnDetails.isRefunded",
+                  { $ifNull: ["$productDetail.returnDetails.refundAmount", 0] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]);
+
+      const stats = {
+        sellerInfo: seller,
+        totalOrders,
+        totalProducts,
+        totalEmployees,
+        returnedItems: returnRefundStats[0]?.returnedItems || 0,
+        refundedItems: returnRefundStats[0]?.refundedItems || 0,
+        totalRefundAmount: returnRefundStats[0]?.totalRefundAmount || 0,
+      };
+
+      return response.ok(res, stats);
+    } catch (error) {
+      console.error("Error in getSellerStats:", error);
+      return response.error(res, error);
+    }
+  },
+  exportDetailedSellerReport: async (req, res) => {
+    try {
+      const { reportTypes = [] } = req.body;
+      console.log("reportTypes", reportTypes);
+      const { id } = req.body;
+
+      const sellers = await User.findById(id).select(
+        "_id username email number type status"
+      );
+
+      if (!reportTypes || reportTypes.length === 0) {
+        return res
+          .status(400)
+          .json({ status: false, message: "No report types provided" });
+      }
+      const workbook = new ExcelJS.Workbook();
+
+      // Sheet 0: Seller Products
+      if (reportTypes.includes("Products")) {
+        const productSheet = workbook.addWorksheet("Seller Products");
+        productSheet.columns = [
+          { header: "Seller Name", key: "sellerName", width: 25 },
+          { header: "Product Name", key: "productName", width: 30 },
+          { header: "Category", key: "category", width: 20 },
+          { header: "Manufacturer", key: "manufacturer", width: 20 },
+          { header: "Expiry Date", key: "expiryDate", width: 15 },
+          { header: "Product Image", key: "productImage", width: 20 },
+          { header: "Sold Pieces", key: "soldPieces", width: 15 },
+          // price slot will be array
+          { header: "Price Slot", key: "priceSlot", width: 30 },
+        ];
+
+        const sellerProducts = await Product.find({
+          userid: id,
+        });
+
+        sellerProducts.forEach((item) => {
+          productSheet.addRow({
+            sellerName: sellers.username,
+            productName: item?.name || "Unknown Product",
+            category: item?.categoryName || "Unknown Category",
+            manufacturer: `${item?.manufacturername || ""}, ${
+              item?.manufactureradd || ""
+            }`,
+            expiryDate: item?.expirydate?.toISOString().split("T")[0] || "N/A",
+            productImage: item?.image || "N/A",
+            soldPieces: item?.sold_pieces || 0,
+            priceSlot: item?.price_slot && item.price_slot.length
+            ? item.price_slot.map((slot) => {
+                return `Qty: ${slot.value}${slot.unit}, Price: ${slot.our_price}, Other Price: ${slot.other_price}`;
+              }).join(" | ")
+            : "N/A",
+          });
+        });
+      }
+
+      // Sheet 1: Seller Orderse
+      if (reportTypes.includes("Orders")) {
+        const orderSheet = workbook.addWorksheet("Seller Order");
+        orderSheet.columns = [
+          { header: "Seller Name", key: "sellerName", width: 25 },
+          { header: "Customer Name", key: "customerName", width: 25 },
+          { header: "Customer Email", key: "email", width: 30 },
+          { header: "Customer Phone", key: "number", width: 20 },
+          { header: "Product Name", key: "productName", width: 30 },
+          { header: "Category", key: "category", width: 20 },
+          { header: "Price", key: "price", width: 15 },
+          { header: "Quantity", key: "qty", width: 10 },
+          // { header: "Total", key: "total", width: 15 },
+        ];
+
+        const sellerProducts = await ProductRequest.find({
+          seller_id: id,
+        })
+          .populate("productDetail.product")
+          .populate("user", "username email number");
+
+        sellerProducts.forEach((order) => {
+          order.productDetail.forEach((item) => {
+            orderSheet.addRow({
+              sellerName: sellers.username,
+              customerName: order.user?.username || "",
+              email: order.user?.email || "",
+              number: order.user?.number || "",
+              productName: item.product?.name || "Unknown Product",
+              category: item.product?.categoryName || "Unknown Category",
+              price: item.price,
+              qty: item.qty,
+              // total: item.total,
+            });
+          });
+        });
+      }
+
+      // Sheet 2: Seller Employees
+      if (reportTypes.includes("Employees")) {
+        const employeeSheet = workbook.addWorksheet("Seller Employees");
+        employeeSheet.columns = [
+          { header: "Seller Name", key: "sellerName", width: 25 },
+          { header: "Employee Name", key: "employeeName", width: 25 },
+          { header: "Email", key: "email", width: 30 },
+          { header: "Mobile", key: "number", width: 20 },
+        ];
+
+        const employees = await User.find({
+          parent_vendor_id: id,
+          type: "EMPLOYEE",
+        });
+
+        employees.forEach((emp) => {
+          employeeSheet.addRow({
+            sellerName: sellers.username,
+            employeeName: emp.username,
+            email: emp.email,
+            number: emp.number,
+          });
+        });
+      }
+
+      // Sheet 3: Returned Items
+      if (reportTypes.includes("Returns") || reportTypes.includes("Refunds")) {
+        const returnSheet = workbook.addWorksheet("Returned Items");
+        returnSheet.columns = [
+          { header: "Seller Name", key: "sellerName", width: 25 },
+          { header: "Customer Name", key: "customerName", width: 25 },
+          { header: "Customer Email", key: "email", width: 30 },
+          { header: "Customer Phone", key: "number", width: 20 },
+          { header: "Product Name", key: "productName", width: 30 },
+          { header: "Reason", key: "reason", width: 30 },
+          { header: "Refund Amount", key: "refundAmount", width: 20 },
+          { header: "Returned", key: "isReturned", width: 15 },
+          { header: "Refunded", key: "isRefunded", width: 15 },
+        ];
+
+        const returns = await ProductRequest.find({ seller_id: id })
+          .populate("user")
+          .populate("productDetail.product");
+
+        returns.forEach((order) => {
+          order.productDetail.forEach((item) => {
+            if (
+              item.returnDetails?.isReturned ||
+              item.returnDetails?.isRefunded
+            ) {
+              returnSheet.addRow({
+                sellerName: sellers.username,
+                customerName: order.user?.username || "",
+                email: order.user?.email || "",
+                number: order.user?.number || "",
+                productName: item.product?.title || "Unknown Product",
+                reason: item.returnDetails?.reason || "",
+                refundAmount: item.returnDetails?.refundAmount || 0,
+                isReturned: item.returnDetails?.isReturned ? "Yes" : "No",
+                isRefunded: item.returnDetails?.isRefunded ? "Yes" : "No",
+              });
+            }
+          });
+        });
+      }
+
+      // Loop through sellers and populate sheets
+      // for (const seller of sellers) {
+      //   const sellerName = seller.username;
+
+      //   // 1. Seller Items
+      //   if (reportTypes.includes("Orders")) {
+      //     const sellerProducts = await ProductRequest.find({
+      //       seller_id: seller._id,
+      //     }).populate("productDetail.product");
+
+      //     sellerProducts.forEach((order) => {
+      //       order.productDetail.forEach((item) => {
+      //         orderSheet.addRow({
+      //           sellerName,
+      //           productName: item.product?.name || "Unknown Product",
+      //           category: item.product?.categoryName || "Unknown Category",
+      //           price: item.price,
+      //           qty: item.qty,
+      //           total: item.total,
+      //         });
+      //       });
+      //     });
+      //   }
+
+      //   // 2. Seller Employees
+      //   const employees = await User.find({
+      //     parent_vendor_id: seller._id,
+      //     type: "EMPLOYEE",
+      //   });
+      //   employees.forEach((emp) => {
+      //     employeeSheet.addRow({
+      //       sellerName,
+      //       employeeName: emp.username,
+      //       email: emp.email,
+      //       number: emp.number,
+      //     });
+      //   });
+
+      //   // 3. Returned Items
+      //   const returnedOrders = await ProductRequest.find({
+      //     seller_id: seller._id,
+      //   })
+      //     .populate("user")
+      //     .populate("productDetail.product");
+
+      //   returnedOrders.forEach((order) => {
+      //     order.productDetail.forEach((item) => {
+      //       if (
+      //         item.returnDetails?.isReturned ||
+      //         item.returnDetails?.isRefunded
+      //       ) {
+      //         returnSheet.addRow({
+      //           sellerName,
+      //           customerName: order.user?.username || "",
+      //           email: order.user?.email || "",
+      //           number: order.user?.number || "",
+      //           productName: item.product?.title || "Unknown Product",
+      //           reason: item.returnDetails?.reason || "",
+      //           refundAmount: item.returnDetails?.refundAmount || 0,
+      //           isReturned: item.returnDetails?.isReturned ? "Yes" : "No",
+      //           isRefunded: item.returnDetails?.isRefunded ? "Yes" : "No",
+      //         });
+      //       }
+      //     });
+      //   });
+      // }
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=detailed-seller-report.xlsx"
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      console.error("Export error:", error);
+      return res
+        .status(500)
+        .json({ status: false, message: "Export failed", error });
+    }
+  },
+
+  exportAllSellerReport: async (req, res) => {
+    try {
+      const { reportTypes = [] } = req.body;
+      const { id } = req.body;
+
+      if (!reportTypes || reportTypes.length === 0) {
+        return res
+          .status(400)
+          .json({ status: false, message: "No report types provided" });
+      }
+      const sellers = await User.find({ type: "SELLER" });
+
+      const workbook = new ExcelJS.Workbook();
+
+      // Sheet 1: Seller Orderse
+      if (reportTypes.includes("Orders")) {
+        const orderSheet = workbook.addWorksheet("Seller Order");
+        orderSheet.columns = [
+          { header: "Seller Name", key: "sellerName", width: 25 },
+          { header: "Product Name", key: "productName", width: 30 },
+          { header: "Category", key: "category", width: 20 },
+          { header: "Price", key: "price", width: 15 },
+          { header: "Quantity", key: "qty", width: 10 },
+          { header: "Total", key: "total", width: 15 },
+        ];
+      }
+
+      // Sheet 2: Seller Employees
+      const employeeSheet = workbook.addWorksheet("Seller Employees");
+      employeeSheet.columns = [
+        { header: "Seller Name", key: "sellerName", width: 25 },
+        { header: "Employee Name", key: "employeeName", width: 25 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Mobile", key: "number", width: 20 },
+      ];
+
+      // Sheet 3: Returned Items
+      const returnSheet = workbook.addWorksheet("Returned Items");
+      returnSheet.columns = [
+        { header: "Seller Name", key: "sellerName", width: 25 },
+        { header: "Customer Name", key: "customerName", width: 25 },
+        { header: "Customer Email", key: "email", width: 30 },
+        { header: "Customer Phone", key: "number", width: 20 },
+        { header: "Product Name", key: "productName", width: 30 },
+        { header: "Reason", key: "reason", width: 30 },
+        { header: "Refund Amount", key: "refundAmount", width: 20 },
+        { header: "Returned", key: "isReturned", width: 15 },
+        { header: "Refunded", key: "isRefunded", width: 15 },
+      ];
+
+      // Loop through sellers and populate sheets
+      for (const seller of sellers) {
+        const sellerName = seller.username;
+
+        // 1. Seller Items
+        if (reportTypes.includes("Orders")) {
+          const sellerProducts = await ProductRequest.find({
+            seller_id: seller._id,
+          }).populate("productDetail.product");
+
+          sellerProducts.forEach((order) => {
+            order.productDetail.forEach((item) => {
+              orderSheet.addRow({
+                sellerName,
+                productName: item.product?.name || "Unknown Product",
+                category: item.product?.categoryName || "Unknown Category",
+                price: item.price,
+                qty: item.qty,
+                total: item.total,
+              });
+            });
+          });
+        }
+
+        // 2. Seller Employees
+        const employees = await User.find({
+          parent_vendor_id: seller._id,
+          type: "EMPLOYEE",
+        });
+        employees.forEach((emp) => {
+          employeeSheet.addRow({
+            sellerName,
+            employeeName: emp.username,
+            email: emp.email,
+            number: emp.number,
+          });
+        });
+
+        // 3. Returned Items
+        const returnedOrders = await ProductRequest.find({
+          seller_id: seller._id,
+        })
+          .populate("user")
+          .populate("productDetail.product");
+
+        returnedOrders.forEach((order) => {
+          order.productDetail.forEach((item) => {
+            if (
+              item.returnDetails?.isReturned ||
+              item.returnDetails?.isRefunded
+            ) {
+              returnSheet.addRow({
+                sellerName,
+                customerName: order.user?.username || "",
+                email: order.user?.email || "",
+                number: order.user?.number || "",
+                productName: item.product?.title || "Unknown Product",
+                reason: item.returnDetails?.reason || "",
+                refundAmount: item.returnDetails?.refundAmount || 0,
+                isReturned: item.returnDetails?.isReturned ? "Yes" : "No",
+                isRefunded: item.returnDetails?.isRefunded ? "Yes" : "No",
+              });
+            }
+          });
+        });
+      }
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=detailed-seller-report.xlsx"
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      console.error("Export error:", error);
+      return res
+        .status(500)
+        .json({ status: false, message: "Export failed", error });
+    }
+  },
 };
