@@ -1,5 +1,12 @@
 const nodemailer = require("nodemailer");
-const { default: currencySign } = require("./currencySign");
+// const { default: currencySign } = require("./currencySign");
+
+function currencySign(amount) {
+  if (amount == null || isNaN(amount)) {
+      return '₹0';
+  }
+  return `₹${amount}`;
+}
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -103,7 +110,7 @@ module.exports = {
     } catch (err) {
       throw new Error("Could not send update notification email");
     }
-  },
+  }, 
   returnMail: async ({ email, returnAmount }) => {
     try {
       const html = `A refund has been processed for one of your orders. Amount: ${currencySign(returnAmount)}`;
