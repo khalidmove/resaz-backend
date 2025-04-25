@@ -743,7 +743,7 @@ module.exports = {
   getSellerOrderByAdmin: async (req, res) => {
     try {
       let cond = {};
-      const { curDate } = req.body;
+      const { curDate, sellerName, customerName, returnOrders } = req.body;
 
       if (curDate) {
         cond.createdAt = {
@@ -759,6 +759,29 @@ module.exports = {
           )
         );
         cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
+      }
+  
+      if (customerName) {
+        const user = await User.findOne({
+          username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
+        });
+  
+        if (user) {
+          cond["user"] = user._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+        }
+      }
+      if (sellerName) {
+        const seller = await User.findOne({
+          username: new RegExp("^" + sellerName.trim(), "i"), // Case-insensitive search
+        });
+
+        if (seller) {
+          cond["seller_id"] = seller._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+        }
       }
 
       if (req.body.returnOrders) {
@@ -802,7 +825,7 @@ module.exports = {
   getSellerReturnOrderByAdmin: async (req, res) => {
     try {
       let cond = {};
-      const { curDate, curentDate } = req.body;
+      const { curDate, curentDate, sellerName, customerName } = req.body;
 
       if (curDate) {
         cond.createdAt = {
@@ -821,6 +844,29 @@ module.exports = {
 
       if (req.user.type === "SELLER") {
         cond.seller_id = req.user.id;
+      }
+
+      if (customerName) {
+        const user = await User.findOne({
+          username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
+        });
+  
+        if (user) {
+          cond["user"] = user._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+        }
+      }
+      if (sellerName) {
+        const seller = await User.findOne({
+          username: new RegExp("^" + sellerName.trim(), "i"), // Case-insensitive search
+        });
+
+        if (seller) {
+          cond["seller_id"] = seller._id;
+        } else {
+          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+        }
       }
 
       cond.productDetail = {

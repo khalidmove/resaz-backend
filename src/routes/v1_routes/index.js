@@ -412,15 +412,16 @@ router.get("/getTax", user.getTax);
 
 // Employee API
 router.post("/createEmployee", isAuthenticated(["SELLER"]), user.createEmployee);
-router.get("/getEmployee", isAuthenticated(["SELLER"]), user.getEmployeeList);
-router.post("/updateEmployee", isAuthenticated(["SELLER"]), user.updateEmployee);
-router.delete("/deleteEmployee/:id", isAuthenticated(["SELLER"]), user.deleteEmployee);
-router.get("/getEmployeeById/:id", isAuthenticated(["SELLER"]), user.getEmployeeById);
+router.get("/getEmployee", isAuthenticated(["ADMIN","SELLER"]), user.getEmployeeList);
+router.post("/updateEmployee", isAuthenticated(["ADMIN","SELLER"]), user.updateEmployee);
+router.delete("/deleteEmployee/:id", isAuthenticated(["ADMIN","SELLER"]), user.deleteEmployee);
+router.get("/getEmployeeById/:id", isAuthenticated(["ADMIN","SELLER"]), user.getEmployeeById);
 // router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 router.post("/assignOrder", isAuthenticated(["SELLER"]), product.assignOrderToEmployee);
 router.get("/getSellerEmployeeByAdmin", isAuthenticated(["ADMIN"]), user.getSellerEmployeeByAdmin);
 
 router.get("/getSellerStats/:sellerId", isAuthenticated(["ADMIN", "SELLER"]), user.getSellerStats);
+router.post("/export/detailed-seller-report", isAuthenticated(["ADMIN"]), user.exportDetailedSellerReport);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
