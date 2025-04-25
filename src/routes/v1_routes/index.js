@@ -265,7 +265,7 @@ router.post(
 );
 router.post(
     "/changeorderstatus",
-    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER","EMPLOYEE"]),
     product.changeorderstatus
 );
 router.get(

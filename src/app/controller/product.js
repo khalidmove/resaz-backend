@@ -545,12 +545,13 @@ module.exports = {
       let cond = {};
       const { curDate } = req.body;
 
-      // if (req.user.type === "SELLER") {
-      //   cond = {
-      //     seller_id: req.user.id,
-      //     status: { $in: ["Pending", "Packed"] },
-      //   };
-      // }
+      if (req.user.type === "SELLER") {
+        cond = {
+          seller_id: req.user.id,
+          assignedEmployee: { $exists: false },
+          // status: { $in: ["Pending", "Packed"] }
+        };
+      }
 
       if (curDate) {
         cond.createdAt = {
@@ -701,7 +702,8 @@ module.exports = {
       if (req.user.type === "SELLER") {
         cond = {
           seller_id: req.user.id,
-          status: "Driverassigned",
+          assignedEmployee: {$exists:true},
+          status: { $ne: "Delivered" }
         };
       }
       const product = await ProductRequest.find(cond)
@@ -756,11 +758,11 @@ module.exports = {
             },
           },
         });
-        await notify(
+       {driverlist.length>0&& await notify(
           driverlist,
           "New Order receive",
           "You New Order receive for delivery"
-        );
+        );}
       }
       if (req.body.status === "Delivered") {
         product.onthewaytodelivery = false;
@@ -901,12 +903,15 @@ module.exports = {
   },
   orderhistoryforvendor: async (req, res) => {
     try {
+      const { page = 1, limit = 20 } = req.query;
       const product = await ProductRequest.find({
         seller_id: req.user.id,
         status: "Delivered",
       })
         .sort({ createdAt: -1 })
-        .populate("user", "-password");
+        .populate("user", "-password")
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -1096,7 +1101,7 @@ module.exports = {
 getOrderByEmployee: async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:'Pending'})
+    const product = await ProductRequest.find({assignedEmployee:req.user.id,status: { $in: ["Pending", "Packed"] }})
       .populate("user", "-password -varients")
       .populate("productDetail.product")
       .sort({ createdAt: -1 })
@@ -1114,7 +1119,7 @@ getOrderByEmployee: async (req, res) => {
 getOrderHistoryByEmployee: async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:{$ne:'Pending'}})
+    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:{$nin:['Pending','Packed']}})
       .populate("user", "-password -varients")
       .populate("productDetail.product")
       .sort({ createdAt: -1 })
