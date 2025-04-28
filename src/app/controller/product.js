@@ -408,14 +408,14 @@ module.exports = {
       const categoryIds = products.map((p) => p.category);
       const categories = await Category.find({
         _id: { $in: categoryIds },
-      }).select("isReturnable");
-
+      }).select("is_refundable");
+ 
       const productCategoryMap = new Map();
       products.forEach((product) => {
         const category = categories.find((c) => c._id.equals(product.category));
         productCategoryMap.set(
           product._id.toString(),
-          category?.isReturnable ?? true
+          !(category?.is_refundable ?? true)
         );
       });
 
