@@ -409,7 +409,7 @@ module.exports = {
       const categories = await Category.find({
         _id: { $in: categoryIds },
       }).select("is_refundable");
- 
+
       const productCategoryMap = new Map();
       products.forEach((product) => {
         const category = categories.find((c) => c._id.equals(product.category));
@@ -762,16 +762,18 @@ module.exports = {
         );
         cond.createdAt = { $gte: new Date(req.body.curentDate), $lte: newEt };
       }
-  
+
       if (customerName) {
         const user = await User.findOne({
           username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
         });
-  
+
         if (user) {
           cond["user"] = user._id;
         } else {
-          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+          return res
+            .status(404)
+            .json({ status: false, message: "Customer not found." }); // Handle user not found
         }
       }
       if (sellerName) {
@@ -782,7 +784,9 @@ module.exports = {
         if (seller) {
           cond["seller_id"] = seller._id;
         } else {
-          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+          return res
+            .status(404)
+            .json({ status: false, message: "Seller not found." }); // Handle seller not found
         }
       }
 
@@ -852,11 +856,13 @@ module.exports = {
         const user = await User.findOne({
           username: new RegExp("^" + customerName.trim(), "i"), // Case-insensitive search
         });
-  
+
         if (user) {
           cond["user"] = user._id;
         } else {
-          return res.status(404).json({ status: false, message: "Customer not found." }); // Handle user not found
+          return res
+            .status(404)
+            .json({ status: false, message: "Customer not found." }); // Handle user not found
         }
       }
       if (sellerName) {
@@ -867,7 +873,9 @@ module.exports = {
         if (seller) {
           cond["seller_id"] = seller._id;
         } else {
-          return res.status(404).json({ status: false, message: "Seller not found." }); // Handle seller not found
+          return res
+            .status(404)
+            .json({ status: false, message: "Seller not found." }); // Handle seller not found
         }
       }
 
@@ -901,6 +909,19 @@ module.exports = {
             orderObj.productDetail?.filter(
               (item) => item.returnDetails?.isReturned === true
             ) || [];
+
+          // const refundedItems =
+          // orderObj.productDetail?.filter(
+          //   (item) => item.returnDetails?.isRefunded === true
+          // ) || [];
+
+          // if (returnedItems.length > 0 || refundedItems.length > 0) {
+          //   return {
+          //     ...orderObj,
+          //     indexNo: skip + index + 1,
+          //     productDetail: returnedItems.concat(refundedItems),
+          //   };
+          // }
 
           if (returnedItems.length > 0) {
             return {
@@ -971,8 +992,8 @@ module.exports = {
       if (req.user.type === "SELLER") {
         cond = {
           seller_id: req.user.id,
-          assignedEmployee: {$exists:true},
-          status: { $ne: "Delivered" }
+          assignedEmployee: { $exists: true },
+          status: { $ne: "Delivered" },
         };
       }
       const product = await ProductRequest.find(cond)
@@ -1027,11 +1048,14 @@ module.exports = {
             },
           },
         });
-       {driverlist.length>0&& await notify(
-          driverlist,
-          "New Order receive",
-          "You New Order receive for delivery"
-        );}
+        {
+          driverlist.length > 0 &&
+            (await notify(
+              driverlist,
+              "New Order receive",
+              "You New Order receive for delivery"
+            ));
+        }
       }
       if (req.body.status === "Delivered") {
         product.onthewaytodelivery = false;
@@ -1370,41 +1394,47 @@ module.exports = {
     } catch (error) {
       return res.status(500).json({ message: error.message });
     }
-},
-getOrderByEmployee: async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status: { $in: ["Pending", "Packed"] }})
-      .populate("user", "-password -varients")
-      .populate("productDetail.product")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+  },
+  getOrderByEmployee: async (req, res) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const product = await ProductRequest.find({
+        assignedEmployee: req.user.id,
+        status: { $in: ["Pending", "Packed"] },
+      })
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-    return res.status(200).json({
-      status: true,
-      data: product,
-    });
-  } catch (error) {
-    return response.error(res, error);
-  }
-},
-getOrderHistoryByEmployee: async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const product = await ProductRequest.find({assignedEmployee:req.user.id,status:{$nin:['Pending','Packed']}})
-      .populate("user", "-password -varients")
-      .populate("productDetail.product")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      return res.status(200).json({
+        status: true,
+        data: product,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  getOrderHistoryByEmployee: async (req, res) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const product = await ProductRequest.find({
+        assignedEmployee: req.user.id,
+        status: { $nin: ["Pending", "Packed"] },
+      })
+        .populate("user", "-password -varients")
+        .populate("productDetail.product")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-    return res.status(200).json({
-      status: true,
-      data: product,
-    });
-  } catch (error) {
-    return response.error(res, error);
-  }
-},
+      return res.status(200).json({
+        status: true,
+        data: product,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
 };

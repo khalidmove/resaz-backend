@@ -1,6 +1,7 @@
 "use strict";
 const router = require("express").Router();
 const user = require("../../app/controller/user");
+const timeslot = require("../../app/controller/timeController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const blog = require("../../app/controller/blogs");
 const category = require("../../app/controller/category");
@@ -422,6 +423,9 @@ router.get("/getSellerEmployeeByAdmin", isAuthenticated(["ADMIN"]), user.getSell
 
 router.get("/getSellerStats/:sellerId", isAuthenticated(["ADMIN", "SELLER"]), user.getSellerStats);
 router.post("/export/detailed-seller-report", isAuthenticated(["ADMIN"]), user.exportDetailedSellerReport);
+
+router.post("/create-timeslot", isAuthenticated(["ADMIN"]), timeslot.createTimeSlot);
+router.get("/get-timeslot", isAuthenticated(["ADMIN"]), timeslot.getAllTimeSlots);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
