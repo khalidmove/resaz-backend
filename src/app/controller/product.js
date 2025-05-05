@@ -434,6 +434,8 @@ module.exports = {
             location: payload.location,
             paymentmode: payload.paymentmode,
             timeslot: payload.timeslot,
+            // deliveryCharge: payload.deliveryCharge,
+            // deliveryTip: payload.deliveryTip
           };
         }
 
@@ -468,8 +470,11 @@ module.exports = {
         const taxRate = taxData?.taxRate || 0;
         const baseTotal = sellerOrders[sellerId].total;
         const taxAmount = (baseTotal * taxRate) / 100;
+        // const deliveryCharge = sellerOrders[sellerId].deliveryCharge || 0;
+        // const deliveryTip = sellerOrders[sellerId].deliveryTip || 0;
 
         sellerOrders[sellerId].tax = taxAmount;
+        // sellerOrders[sellerId].total = baseTotal + taxAmount + deliveryCharge + deliveryTip;
         sellerOrders[sellerId].total = baseTotal + taxAmount;
 
         const newOrder = new ProductRequest(sellerOrders[sellerId]);

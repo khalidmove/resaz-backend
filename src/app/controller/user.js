@@ -112,6 +112,7 @@ module.exports = {
           numberPlate: payload?.numberPlate,
           numberPlateImg: payload?.numberPlateImg,
           licences: payload?.licences,
+          referalpoints: 250,
         });
         user.password = user.encryptPassword(req.body.password);
         await user.save();

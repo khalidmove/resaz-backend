@@ -425,7 +425,15 @@ router.get("/getSellerStats/:sellerId", isAuthenticated(["ADMIN", "SELLER"]), us
 router.post("/export/detailed-seller-report", isAuthenticated(["ADMIN"]), user.exportDetailedSellerReport);
 
 router.post("/create-timeslot", isAuthenticated(["ADMIN"]), timeslot.createTimeSlot);
-router.get("/get-timeslot", isAuthenticated(["ADMIN"]), timeslot.getAllTimeSlots);
+router.get("/get-timeslot", timeslot.getAllTimeSlots);
+router.delete("/delete-timeslot/:id", isAuthenticated(["ADMIN"]), timeslot.deleteTimeSlot);
+
+// Delivery Related APIs
+router.post("/createDeliveryCharge", isAuthenticated(["ADMIN"]), setting.addDeliveryCharge);
+router.post("/createDeliveryPartnerTip", isAuthenticated(["ADMIN"]), setting.addDeliveryPartnerTips);
+router.get("/getDeliveryCharge", setting.getDeliveryCharge);
+router.get("/getDeliveryPartnerTip", setting.getDeliveryPartnerTips);
+router.delete("/deleteDeliveryTip", isAuthenticated(["ADMIN"]), setting.deleteDeliveryPartnerTips);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
