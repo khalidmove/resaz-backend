@@ -16,6 +16,7 @@ const favourite = require("../../app/controller/favourite");
 const notification = require("../../app/controller/notification");
 const { createContent, getContent, updateContent } = require("../../app/controller/ContentManagement");
 const { getFaqs, createFaq, updateFaq, deleteFaq } = require('../../app/controller/Faq');
+const dashboard = require("../../app/controller/dashboard");
 
 router.post("/login", user.login);
 router.post("/signUp", user.signUp);
@@ -434,6 +435,11 @@ router.post("/createDeliveryPartnerTip", isAuthenticated(["ADMIN"]), setting.add
 router.get("/getDeliveryCharge", setting.getDeliveryCharge);
 router.get("/getDeliveryPartnerTip", setting.getDeliveryPartnerTips);
 router.delete("/deleteDeliveryTip", isAuthenticated(["ADMIN"]), setting.deleteDeliveryPartnerTips);
+
+router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getDashboardData);
+router.get("/getSalesStats", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getMonthlyProductSales);
+router.get("/getTopProductSales", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getTopProductSales);
+router.get("/getDailyTopSellingProduct", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getDailyTopSellingProduct);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
