@@ -1,6 +1,7 @@
 "use strict";
 const router = require("express").Router();
 const user = require("../../app/controller/user");
+const timeslot = require("../../app/controller/timeController");
 const isAuthenticated = require("../../middlewares/isAuthenticated");
 const blog = require("../../app/controller/blogs");
 const category = require("../../app/controller/category");
@@ -15,6 +16,7 @@ const favourite = require("../../app/controller/favourite");
 const notification = require("../../app/controller/notification");
 const { createContent, getContent, updateContent } = require("../../app/controller/ContentManagement");
 const { getFaqs, createFaq, updateFaq, deleteFaq } = require('../../app/controller/Faq');
+const dashboard = require("../../app/controller/dashboard");
 
 router.post("/login", user.login);
 router.post("/signUp", user.signUp);
@@ -422,6 +424,22 @@ router.get("/getSellerEmployeeByAdmin", isAuthenticated(["ADMIN"]), user.getSell
 
 router.get("/getSellerStats/:sellerId", isAuthenticated(["ADMIN", "SELLER"]), user.getSellerStats);
 router.post("/export/detailed-seller-report", isAuthenticated(["ADMIN"]), user.exportDetailedSellerReport);
+
+router.post("/create-timeslot", isAuthenticated(["ADMIN"]), timeslot.createTimeSlot);
+router.get("/get-timeslot", timeslot.getAllTimeSlots);
+router.delete("/delete-timeslot/:id", isAuthenticated(["ADMIN"]), timeslot.deleteTimeSlot);
+
+// Delivery Related APIs
+router.post("/createDeliveryCharge", isAuthenticated(["ADMIN"]), setting.addDeliveryCharge);
+router.post("/createDeliveryPartnerTip", isAuthenticated(["ADMIN"]), setting.addDeliveryPartnerTips);
+router.get("/getDeliveryCharge", setting.getDeliveryCharge);
+router.get("/getDeliveryPartnerTip", setting.getDeliveryPartnerTips);
+router.delete("/deleteDeliveryTip", isAuthenticated(["ADMIN"]), setting.deleteDeliveryPartnerTips);
+
+router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getDashboardData);
+router.get("/getSalesStats", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getMonthlyProductSales);
+router.get("/getTopProductSales", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getTopProductSales);
+router.get("/getDailyTopSellingProduct", isAuthenticated(["ADMIN", "SELLER"]), dashboard.getDailyTopSellingProduct);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);

@@ -1,6 +1,18 @@
 "use strict";
 
 const mongoose = require("mongoose");
+const crypto = require('crypto');
+
+const generateShortTimestamp = () => {
+  const now = Date.now();
+  return now.toString(36).toUpperCase();
+};
+
+const generateUniqueOrderId = () => {
+  const timestampPart = generateShortTimestamp();
+  const randomPart = crypto.randomBytes(2).toString('hex').toUpperCase();
+  return `ORD-${timestampPart}-${randomPart}`;
+};
 
 const pointSchema = new mongoose.Schema({
   type: {
@@ -101,6 +113,12 @@ const productrequestchema = new mongoose.Schema(
     total: {
       type: Number,
     },
+    deliveryCharge: {
+      type: Number,
+    },
+    deliveryTip: {
+      type: Number,
+    },
     location: {
       type: pointSchema,
     },
@@ -127,6 +145,13 @@ const productrequestchema = new mongoose.Schema(
     deliveredAt: {
       type: Date,
     },
+    orderId: {
+      type: String,
+      maxlength: 100,
+      unique: true,
+      index: true,
+    },
+
 
     // return: {
     //   type: Boolean,
@@ -165,5 +190,24 @@ productrequestchema.set("toJSON", {
   },
 });
 productrequestchema.index({ location: "2dsphere" });
+productrequestchema.index({ orderId: 1 }, { unique: true });
+
+productrequestchema.pre('save', async function (next) {
+  const ProductRequest = this.constructor;
+
+  if (!this.orderId) {
+    let newOrderId;
+    let existing;
+
+    do {
+      newOrderId = generateUniqueOrderId();
+      existing = await ProductRequest.findOne({ orderId: newOrderId });
+    } while (existing);
+
+    this.orderId = newOrderId;
+  }
+
+  next();
+});
 
 module.exports = mongoose.model("ProductRequest", productrequestchema);
