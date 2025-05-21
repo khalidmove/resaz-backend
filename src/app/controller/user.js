@@ -633,10 +633,66 @@ module.exports = {
         .skip(skip)
         .limit(limit);
 
-      const indexedDrivers = drivers.map((item, index) => ({
-        ...(item.toObject?.() || item),
-        indexNo: skip + index + 1,
-      }));
+      const totalDeliveries = await ProductRequest.countDocuments({
+        driver_id: { $ne: null },
+      });
+
+      const totalEarns = await ProductRequest.aggregate([
+        {
+          $match: { driver_id: { $ne: null } },
+        },
+        {
+          $group: {
+            _id: null,
+            totalEarnings: { $sum: { $ifNull: ["$total", 0] } },
+            totalTips: { $sum: { $ifNull: ["$deliveryTip", 0] } },
+            totalWalletBalance: { $sum: { $ifNull: ["$walletBalance", 0] } },
+          },
+        },
+      ]);
+
+      const totalEarnings = totalEarns[0]?.totalEarnings || 0;
+      const totalTips = totalEarns[0]?.totalTips || 0;
+      const totalWalletBalance = totalEarns[0]?.totalWalletBalance || 0;
+
+      const indexedDrivers = await Promise.all(
+        drivers.map(async (item, index) => {
+          const driverId = item._id;
+          const [totalOrders, totalEarnings] = await Promise.all([
+            ProductRequest.countDocuments({ driver_id: driverId }),
+            ProductRequest.aggregate([
+              {
+                $match: { driver_id: new mongoose.Types.ObjectId(driverId) },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalEarnings: { $sum: { $ifNull: ["$total", 0] } },
+                },
+              },
+            ]),
+          ]);
+          const earnings = totalEarnings[0]?.totalEarnings || 0;
+          return {
+            ...(item.toObject?.() || item),
+            indexNo: skip + index + 1,
+            stats: {
+              totalOrders,
+              totalEarnings: earnings,
+              totalDeliveries,
+              totalEarns: totalEarnings,
+              totalTips,
+              totalWalletBalance,
+            },
+          };
+        })
+      );
+
+
+      // const indexedDrivers = drivers.map((item, index) => ({
+      //   ...(item.toObject?.() || item),
+      //   indexNo: skip + index + 1,
+      // }));
 
       const totalDrivers = await User.countDocuments({ type: "DRIVER" }); // Get the total number of drivers
       const totalPages = Math.ceil(totalDrivers / limit); // Calculate total pages
@@ -1947,4 +2003,21 @@ module.exports = {
         .json({ status: false, message: "Export failed", error });
     }
   },
+
+  updatedUserDetails: async (req, res) => {
+    try{
+      const user = await User.find({
+        $expr: { $lt: ["$createdAt", "$updatedAt"] }
+      });
+
+      if (!user || user.length === 0) {
+        return response.notFound(res, { message: "User not found" });
+      }
+
+      return response.ok(res, user);
+    } catch (error) {
+      console.error("Error in getSellerStats:", error);
+      return response.error(res, error);
+    }
+  }
 };

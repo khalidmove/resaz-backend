@@ -428,6 +428,7 @@ router.post("/export/detailed-seller-report", isAuthenticated(["ADMIN"]), user.e
 router.post("/create-timeslot", isAuthenticated(["ADMIN"]), timeslot.createTimeSlot);
 router.get("/get-timeslot", timeslot.getAllTimeSlots);
 router.delete("/delete-timeslot/:id", isAuthenticated(["ADMIN"]), timeslot.deleteTimeSlot);
+router.patch("/update-timeslot/:id", isAuthenticated(["ADMIN"]), timeslot.updateTimeSlot);
 
 // Delivery Related APIs
 router.post("/createDeliveryCharge", isAuthenticated(["ADMIN"]), setting.addDeliveryCharge);

@@ -66,7 +66,12 @@ module.exports = {
 
   getAllTimeSlots: async (req, res) => {
     try {
-      const timeSlots = await TimeSlot.find();
+      const cond = {};
+
+      if (req.query.type !== "admin") {
+        cond.status = true;
+      }
+      const timeSlots = await TimeSlot.find(cond);
       return response.ok(res, {
         message: "Time slots fetched successfully",
         timeSlots,
@@ -93,4 +98,26 @@ module.exports = {
       return response.error(res, { message: "Error deleting time slot" });
     }
   },
+
+  updateTimeSlot: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const timeSlot = await TimeSlot.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      );
+      if (!timeSlot) {
+        return response.notFound(res, { message: "Time slot not found" });
+      }
+      return response.ok(res, {
+        message: "Time slot updated successfully",
+        timeSlot,
+      });
+    } catch (error) {
+      console.error("Error updating time slot:", error);
+      return response.error(res, { message: "Error updating time slot" });
+    }
+  }
 };
