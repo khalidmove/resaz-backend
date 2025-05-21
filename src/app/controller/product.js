@@ -474,7 +474,8 @@ module.exports = {
         const deliveryTip = sellerOrders[sellerId].deliveryTip || 0;
 
         sellerOrders[sellerId].tax = taxAmount;
-        sellerOrders[sellerId].total = baseTotal + taxAmount + deliveryCharge + deliveryTip;
+        sellerOrders[sellerId].total = baseTotal;
+        sellerOrders[sellerId].finalAmount = baseTotal + taxAmount + deliveryCharge + deliveryTip;
         // sellerOrders[sellerId].total = baseTotal + taxAmount;
 
         const newOrder = new ProductRequest(sellerOrders[sellerId]);

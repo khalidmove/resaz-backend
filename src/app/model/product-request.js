@@ -44,6 +44,9 @@ const productrequestchema = new mongoose.Schema(
         total: {
           type: Number,
         },
+        finalAmount: {
+          type: Number,
+        },
         qty: {
           type: Number,
         },
