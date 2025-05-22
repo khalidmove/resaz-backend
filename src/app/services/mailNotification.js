@@ -119,6 +119,27 @@ module.exports = {
       console.error("Mail error:", err);
       throw new Error("Could not send mail");
     }
-  }
-  
+  },
+  returnReminderMail: async ({ email, orderId }) => {
+    console.log("Sending return reminder mail to:", email);
+    console.log("Order ID:", orderId);
+    try {
+      const html = `<div> \r\n<p>Hello,<\/p>\r\n\r\n<p> This is a reminder that your order with ID: <strong>${orderId}</strong> is not returned yet. Please initiate the return process if you wish to do so.<\/p>\r\n<\/br>Thanks,<\/p>\r\n\r\n<p><b>The Resaz Account Team<\/b><\/p><\/div>`;
+      return await sendMail(email, "Return Reminder", html);
+    } catch (err) {
+      console.error("Mail error:", err);
+      throw new Error("Could not send mail");
+    }
+  },
+  sendNotification: async (userIds, title, description) => {
+    try {
+      const html = `<div> \r\n<p>Hello,<\/p>\r\n\r\n<p> ${description} <\/p>\r\n<\/br>Thanks,<\/p>\r\n\r\n<p><b>The Resaz Account Team<\/b><\/p><\/div>`;
+      for (const userId of userIds) {
+          await sendMail(userId, title, html);
+      }
+    } catch (err) {
+      console.error("Mail error:", err);
+      throw new Error("Could not send notification mail");
+    }
+  },
 };
