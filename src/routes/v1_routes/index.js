@@ -58,7 +58,7 @@ router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
 router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.updateProfile);
 router.post(
     "/updateUserLocation",
-    isAuthenticated(["USER", "DRIVER", "ADMIN"]),
+    isAuthenticated(["USER", "DRIVER", "ADMIN","EMPLOYEE"]),
     user.driverupdatelocation
   );
   router.get(
