@@ -131,5 +131,15 @@ module.exports = {
       throw new Error("Could not send mail");
     }
   },
-  
+  sendNotification: async (userIds, title, description) => {
+    try {
+      const html = `<div> \r\n<p>Hello,<\/p>\r\n\r\n<p> ${description} <\/p>\r\n<\/br>Thanks,<\/p>\r\n\r\n<p><b>The Resaz Account Team<\/b><\/p><\/div>`;
+      for (const userId of userIds) {
+          await sendMail(userId, title, html);
+      }
+    } catch (err) {
+      console.error("Mail error:", err);
+      throw new Error("Could not send notification mail");
+    }
+  },
 };

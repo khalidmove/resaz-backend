@@ -424,10 +424,10 @@ module.exports = {
       }
 
       if (returnAllIds) {
-        const allUsers = await User.find(typeFilter).select("_id");
+        const allUsers = await User.find(typeFilter).select("email");
         return res.status(200).json({
           status: true,
-          allUserIds: allUsers.map((u) => u._id),
+          allUserIds: allUsers.map((u) => u.email),
         });
       }
 

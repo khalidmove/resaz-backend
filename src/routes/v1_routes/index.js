@@ -444,6 +444,7 @@ router.get("/getDailyTopSellingProduct", isAuthenticated(["ADMIN", "SELLER"]), d
 
 
 router.post("/reminderSellerForReturn", isAuthenticated(["ADMIN"]), product.reminderSellerForReturn);
+router.post("/sendNotification", isAuthenticated(["ADMIN"]), notification.sendNotification);
 
 // Dashboard stats
 // router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
