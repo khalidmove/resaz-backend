@@ -697,6 +697,14 @@ module.exports = {
         };
       }
 
+      if (req.user.type === "ADMIN") {
+        if (req.body.seller_id) {
+          cond = {
+            seller_id: req.body.seller_id,
+          };
+        }
+      }
+
       if (curDate) {
         cond.createdAt = {
           $gte: new Date(`${curDate}T00:00:00.000Z`),
@@ -845,6 +853,10 @@ module.exports = {
           $gte: new Date(`${curDate}T00:00:00.000Z`),
           $lt: new Date(`${curDate}T23:59:59.999Z`),
         };
+      }
+
+      if (req.body.seller_id) {
+        cond.seller_id = req.body.seller_id;
       }
 
       if (curentDate) {
@@ -1441,6 +1453,28 @@ module.exports = {
         data: product,
       });
     } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  reminderSellerForReturn: async (req, res) => {
+    try{ 
+      const { orderId, sellerId } = req.body;
+      const seller = await User.findById(sellerId).select("email");
+
+      if (!seller) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      await mailNotification.returnReminderMail({
+        email: seller.email,
+        orderId: orderId,
+      });
+      return response.ok(res, {
+        message: "Reminder email sent to seller successfully",
+      });
+    } catch (error) {
+      console.log("Error in reminderSellerForReturn:", error);
       return response.error(res, error);
     }
   },

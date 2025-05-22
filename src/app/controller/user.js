@@ -688,7 +688,6 @@ module.exports = {
         })
       );
 
-
       // const indexedDrivers = drivers.map((item, index) => ({
       //   ...(item.toObject?.() || item),
       //   indexNo: skip + index + 1,
@@ -1346,10 +1345,10 @@ module.exports = {
       const employeeId = req.params.id;
       let vendorId;
 
-      if (req.user.type === "ADMIN"){
-        vendorId = req.body.vendor
+      if (req.user.type === "ADMIN") {
+        vendorId = req.body.vendor;
       } else {
-        vendorId = req.user.id
+        vendorId = req.user.id;
       }
 
       const employee = await User.findById(employeeId);
@@ -1369,7 +1368,7 @@ module.exports = {
 
       return response.ok(res, { message: "Employee deleted successfully" });
     } catch (error) {
-      console.log(error)
+      console.log(error);
       return response.error(res, error);
     }
   },
@@ -1429,7 +1428,7 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
-      let matchStage  = {type:"EMPLOYEE"};
+      let matchStage = { type: "EMPLOYEE" };
 
       if (req.query.curDate) {
         const newEt = new Date(
@@ -1437,8 +1436,17 @@ module.exports = {
             new Date(req.query.curDate).getDate() + 1
           )
         );
-        matchStage.createdAt = { $gte: new Date(req.query.curDate), $lte: newEt };
-      }   
+        matchStage.createdAt = {
+          $gte: new Date(req.query.curDate),
+          $lte: newEt,
+        };
+      }
+
+      if (req.query.seller_id) {
+        matchStage.parent_vendor_id = new mongoose.Types.ObjectId(
+          req.query.seller_id
+        );
+      }
 
       const search = req.query.search?.trim() || null;
 
@@ -1458,7 +1466,7 @@ module.exports = {
           $unwind: "$parent_vendor",
         },
       ];
-      
+
       // Add search condition
       if (search) {
         const searchRegex = new RegExp(search, "i");
@@ -1471,7 +1479,7 @@ module.exports = {
           },
         });
       }
-      
+
       pipeline.push(
         { $sort: { createdAt: -1 } },
         { $skip: skip },
@@ -1483,7 +1491,7 @@ module.exports = {
           },
         }
       );
-      
+
       const employees = await User.aggregate(pipeline);
 
       const indexedEmployees = employees.map((item, index) => ({
@@ -1669,11 +1677,14 @@ module.exports = {
             expiryDate: item?.expirydate?.toISOString().split("T")[0] || "N/A",
             productImage: item?.image || "N/A",
             soldPieces: item?.sold_pieces || 0,
-            priceSlot: item?.price_slot && item.price_slot.length
-            ? item.price_slot.map((slot) => {
-                return `Qty: ${slot.value}${slot.unit}, Price: ${slot.our_price}, Other Price: ${slot.other_price}`;
-              }).join(" | ")
-            : "N/A",
+            priceSlot:
+              item?.price_slot && item.price_slot.length
+                ? item.price_slot
+                    .map((slot) => {
+                      return `Qty: ${slot.value}${slot.unit}, Price: ${slot.our_price}, Other Price: ${slot.other_price}`;
+                    })
+                    .join(" | ")
+                : "N/A",
           });
         });
       }
@@ -2005,9 +2016,9 @@ module.exports = {
   },
 
   updatedUserDetails: async (req, res) => {
-    try{
+    try {
       const user = await User.find({
-        $expr: { $lt: ["$createdAt", "$updatedAt"] }
+        $expr: { $lt: ["$createdAt", "$updatedAt"] },
       });
 
       if (!user || user.length === 0) {
@@ -2019,5 +2030,5 @@ module.exports = {
       console.error("Error in getSellerStats:", error);
       return response.error(res, error);
     }
-  }
+  },
 };
