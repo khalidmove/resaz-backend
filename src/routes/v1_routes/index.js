@@ -54,8 +54,8 @@ router.post(
   user.changePasswordProfile
 );
 
-router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.getProfile);
-router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), user.updateProfile);
+router.get("/getProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER","EMPLOYEE"]), user.getProfile);
+router.post("/updateProfile", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER","EMPLOYEE"]), user.updateProfile);
 router.post(
     "/updateUserLocation",
     isAuthenticated(["USER", "DRIVER", "ADMIN","EMPLOYEE"]),
@@ -66,7 +66,7 @@ router.post(
   );
 
 //notification
-router.get("/getnotification", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]), notification.getnotification);
+router.get("/getnotification", isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER","EMPLOYEE"]), notification.getnotification);
 
 
 //blogs
@@ -150,7 +150,7 @@ router.get("/getProductBythemeId/:id", product.getProductBythemeId);
 router.get("/getTopSoldProduct", product.getTopSoldProduct);
 router.post("/createProduct", isAuthenticated(["USER", "ADMIN", "SELLER"]), product.createProduct);
 router.get("/getProduct", product.getProduct);
-router.get("/getProductforseller",isAuthenticated(["USER", "ADMIN", "SELLER"]), product.getProductforseller);
+router.get("/getProductforseller",isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]), product.getProductforseller);
 router.get("/getSponseredProduct", product.getSponseredProduct);
 
 router.post(
@@ -231,25 +231,25 @@ router.post(
 // product request
 router.post(
     "/createProductRquest",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.requestProduct
 );
 
 router.get(
     "/getProductRquest",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.getrequestProduct
 );
 
 router.patch(
     "/refundProduct/:id",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.refundProduct
 );
 
 router.post(
     "/getOrderBySeller",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.getOrderBySeller
 );
 router.post(
@@ -269,7 +269,7 @@ router.get(
 );
 router.post(
     "/getAssignedOrder",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.getAssignedOrder
 );
 router.post(
@@ -312,7 +312,7 @@ router.post(
 
 router.get(
     "/getProductRequest/:id",
-    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","DRIVER","EMPLOYEE"]),
     product.getrequestProductbyid
 );
 router.get(
@@ -323,7 +323,7 @@ router.get(
 
 router.get(
     "/getProductRequestbyUser",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.getrequestProductbyuser
 );
 router.post(
@@ -347,13 +347,13 @@ router.post("/updateWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELL
 
 router.post(
     "/addremovefavourite",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     favourite.AddFavourite
 );
 
 router.get(
     "/getFavourite",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     favourite.getFavourite
 );
 
@@ -362,42 +362,42 @@ router.get(
 
 router.post(
     "/giverate",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     user.giverate
 );
 
 router.get(
     "/getReview",
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     user.getReview
 );
 router.post("/uploadAllproduct", 
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     product.uploadProducts);
 
 router.get("/getAlluploadproduct",product.uploadProducts);
 
 
 router.post('/content', 
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     createContent);
 
 router.get('/content',
     getContent);
 
 router.post('/content/update',
-    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
     updateContent);
 
 
 router.get('/faq',getFaqs);
 
 router.post('/faq', 
-isAuthenticated(["USER", "ADMIN", "SELLER"]),
+isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
 createFaq);
 
 router.post('/updatefaq/:id', 
-isAuthenticated(["USER", "ADMIN", "SELLER"]),
+isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]),
 updateFaq);
 
 router.delete('/deletefaq/:id',
@@ -405,7 +405,7 @@ isAuthenticated(["USER", "ADMIN", "SELLER"]),
 deleteFaq);
 
 // Shipping Addres API
-router.get("/getShippingAddress", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.getShippingAddress);
+router.get("/getShippingAddress", isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]), user.getShippingAddress);
 
 // Tax calculation API
 router.post("/addOrUpdateTax", isAuthenticated(["ADMIN", "SELLER"]), user.addOrUpdateTax);
