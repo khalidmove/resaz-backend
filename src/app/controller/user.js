@@ -16,6 +16,7 @@ const Review = mongoose.model("Review");
 const { v4: uuidv4 } = require("uuid");
 const generateUniqueId = require("generate-unique-id");
 const Tax = require("../model/tax");
+const ServiceFee = require("../model/servicefee");
 const Setting = mongoose.model("Setting");
 const jwt = require("jsonwebtoken");
 const Product = mongoose.model("Product");
@@ -1209,6 +1210,18 @@ module.exports = {
       return response.error(res, error);
     }
   },
+
+    getServiceFee: async (req, res) => {
+    try {
+      const Servicefee = await ServiceFee.find();
+      if (!Servicefee || Servicefee?.length === 0) {
+        return response.notFound(res, { message: "No tax found" });
+      }
+      return response.ok(res, Servicefee);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
   addOrUpdateTax: async (req, res) => {
     try {
       const payload = req.body;
@@ -1224,6 +1237,26 @@ module.exports = {
         message: "Tax updated successfully.",
         // message: updatedTax ? "Tax updated successfully." : "Tax added successfully.",
         data: updatedTax,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+    addOrUpdatefee: async (req, res) => {
+    try {
+      const payload = req.body;
+
+      const updatedfee = await ServiceFee.findOneAndUpdate(
+     
+        {},
+        payload,
+        { new: true, upsert: true, runValidators: true }
+      );
+
+      return response.ok(res, {
+        message: "Service Fee updated successfully.",
+        data: updatedfee,
       });
     } catch (error) {
       return response.error(res, error);

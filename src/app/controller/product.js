@@ -973,37 +973,60 @@ module.exports = {
     }
   },
 
-  getSellerProductByAdmin: async (req, res) => {
-    try {
-      let page = parseInt(req.query.page) || 1;
-      let limit = parseInt(req.query.limit) || 10;
-      let skip = (page - 1) * limit;
+getSellerProductByAdmin: async (req, res) => {
+  try {
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit);
+    let skip = (page - 1) * limit;
 
-      let product = await Product.find()
-        .populate("category")
-        .populate("userid", "-password")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+    let query = {};
 
-      // return response.ok(res, product);
-      let totalProducts = await Product.countDocuments();
-      const totalPages = Math.ceil(totalProducts / limit);
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, "i");
 
-      return res.status(200).json({
-        status: true,
-        data: product,
-        pagination: {
-          totalItems: totalProducts,
-          totalPages: totalPages,
-          currentPage: page,
-          itemsPerPage: limit,
-        },
-      });
-    } catch (error) {
-      return response.error(res, error);
+     
+      query.$or = [
+        { name: searchRegex } 
+      ];
     }
-  },
+
+    let product = await Product.find(query)
+      .populate("category")
+      .populate("userid", "-password")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+      console.log(product)
+    // Filter again after populate (category.name and seller name)
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, "i");
+
+      product = product.filter(p =>
+        searchRegex.test(p.name) ||
+        searchRegex.test(p.categoryName || "") ||
+        searchRegex.test(p.userid?.username || "")
+      );
+    }
+
+    const totalProducts = product.length;
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    return res.status(200).json({
+      status: true,
+      data: product,
+      pagination: {
+        totalItems: totalProducts,
+        totalPages: totalPages,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    });
+  } catch (error) {
+    return response.error(res, error);
+  }
+},
+
 
   getAssignedOrder: async (req, res) => {
     try {

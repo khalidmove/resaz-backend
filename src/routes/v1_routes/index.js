@@ -409,7 +409,11 @@ router.get("/getShippingAddress", isAuthenticated(["USER", "ADMIN", "SELLER","EM
 
 // Tax calculation API
 router.post("/addOrUpdateTax", isAuthenticated(["ADMIN", "SELLER"]), user.addOrUpdateTax);
+router.post("/addOrUpdateServicefee", isAuthenticated(["ADMIN", "SELLER"]), user.addOrUpdatefee);
+
 router.get("/getTax", user.getTax);
+router.get("/getServiceFee", user.getServiceFee);
+
 // router.post("/updateTax", isAuthenticated(["USER", "ADMIN", "SELLER"]), user.updateTax);
 
 // Employee API
