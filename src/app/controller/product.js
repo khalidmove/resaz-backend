@@ -941,7 +941,6 @@ module.exports = {
           //     productDetail: returnedItems.concat(refundedItems),
           //   };
           // }
-
           if (returnedItems.length > 0) {
             return {
               ...orderObj,
