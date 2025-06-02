@@ -1215,7 +1215,7 @@ module.exports = {
     try {
       const Servicefee = await ServiceFee.find();
       if (!Servicefee || Servicefee?.length === 0) {
-        return response.notFound(res, { message: "No tax found" });
+        return response.notFound(res, { message: "No service fee found" });
       }
       return response.ok(res, Servicefee);
     } catch (error) {

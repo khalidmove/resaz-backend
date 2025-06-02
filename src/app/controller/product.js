@@ -3,6 +3,7 @@ const Product = mongoose.model("Product");
 const ProductRequest = mongoose.model("ProductRequest");
 const User = mongoose.model("User");
 const Tax = mongoose.model("Tax");
+const ServiceFee = require("../model/servicefee");
 const response = require("./../responses");
 const mailNotification = require("../services/mailNotification");
 const { getReview } = require("../helper/user");
@@ -467,6 +468,7 @@ module.exports = {
       for (const sellerId in sellerOrders) {
         // Calculate tax before saving
         const taxData = await Tax.findOne();
+        const feeData = await ServiceFee.findOne();
         const taxRate = taxData?.taxRate || 0;
         const baseTotal = sellerOrders[sellerId].total;
         const taxAmount = (baseTotal * taxRate) / 100;
@@ -474,6 +476,7 @@ module.exports = {
         const deliveryTip = sellerOrders[sellerId].deliveryTip || 0;
 
         sellerOrders[sellerId].tax = taxAmount;
+        sellerOrders[sellerId].servicefee = feeData?.Servicefee;
         sellerOrders[sellerId].total = baseTotal;
         sellerOrders[sellerId].finalAmount = baseTotal + taxAmount + deliveryCharge + deliveryTip;
         // sellerOrders[sellerId].total = baseTotal + taxAmount;

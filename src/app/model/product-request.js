@@ -110,6 +110,10 @@ const productrequestchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    servicefee: {
+      type: Number,
+      default: 0,
+    },
     total: {
       type: Number,
     },
