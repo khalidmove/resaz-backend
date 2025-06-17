@@ -1,38 +1,41 @@
-'use strict';
+"use strict";
 
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-
-const combochema = new mongoose.Schema({
-
-    ComboProduct: [
-        {
-            product: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Product",
-            },
-           
-        }
-    ],
-    total: {
-        type: Number
-    },
-    withdiscount: {
-        type: Number
-    },
-
-}, {
-    timestamps: true
+const PriceSlotSchema = new mongoose.Schema({
+  unit: String,
+  value: String,
+  our_price: Number,
+  other_price: Number,
 });
 
-combochema.set('toJSON', {
-    getters: true,
-    virtuals: false,
-    transform: (doc, ret, options) => {
-        delete ret.__v;
-        return ret;
-    }
+const ComboItemSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+  selected_slot: PriceSlotSchema,
 });
-combochema.index({ location: "2dsphere" });
 
-module.exports = mongoose.model('combo', combochema);
+const ComboProductSchema = new mongoose.Schema(
+  {
+    comboItems: [ComboItemSchema],
+    userid: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    old_price: {
+      type: Number,
+      required: true,
+    },
+    offer_price: {
+      type: Number,
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("ComboProduct", ComboProductSchema);

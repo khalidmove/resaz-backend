@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Product = mongoose.model("Product");
 const ProductRequest = mongoose.model("ProductRequest");
+const ComboProduct = mongoose.model("ComboProduct");
 const User = mongoose.model("User");
 const Tax = mongoose.model("Tax");
 const ServiceFee = require("../model/servicefee");
@@ -31,9 +32,9 @@ module.exports = {
 
   getProduct: async (req, res) => {
     try {
-      let data = {};
+      let query = {};
       if (req.query.seller_id) {
-        data.userid = req.query.seller_id;
+        query.userid = req.query.seller_id;
       }
 
       // Pagination
@@ -41,20 +42,36 @@ module.exports = {
       let limit = parseInt(req.query.limit) || 10;
       let skip = (page - 1) * limit;
 
-      let product = await Product.find(data)
+      let products = await Product.find(query)
         .populate("category")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 
-      let totalProducts = await Product.countDocuments(data); // Count total products matching the criteria
-      const totalPages = Math.ceil(totalProducts / limit);
+      let productResults = [...products];
+      let totalCount = await Product.countDocuments(query);
+
+      // Also send combo products if requested
+      if (req.query.combo === "true") {
+        const comboProducts = await ComboProduct.find(query)
+          .populate("comboItems.product")
+          .populate("userid", "-password")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit);
+
+        productResults = [...productResults, ...comboProducts];
+        const comboCount = await ComboProduct.countDocuments(query);
+        totalCount += comboCount;
+      }
+
+      const totalPages = Math.ceil(totalCount / limit);
 
       return res.status(200).json({
         status: true,
-        data: product,
+        data: productResults,
         pagination: {
-          totalItems: totalProducts,
+          totalItems: totalCount,
           totalPages: totalPages,
           currentPage: page,
           itemsPerPage: limit,
@@ -436,7 +453,7 @@ module.exports = {
             paymentmode: payload.paymentmode,
             timeslot: payload.timeslot,
             deliveryCharge: payload.deliveryCharge,
-            deliveryTip: payload.deliveryTip
+            deliveryTip: payload.deliveryTip,
           };
         }
 
@@ -478,7 +495,8 @@ module.exports = {
         sellerOrders[sellerId].tax = taxAmount;
         sellerOrders[sellerId].servicefee = feeData?.Servicefee;
         sellerOrders[sellerId].total = baseTotal;
-        sellerOrders[sellerId].finalAmount = baseTotal + taxAmount + deliveryCharge + deliveryTip;
+        sellerOrders[sellerId].finalAmount =
+          baseTotal + taxAmount + deliveryCharge + deliveryTip;
         // sellerOrders[sellerId].total = baseTotal + taxAmount;
 
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
@@ -975,60 +993,57 @@ module.exports = {
     }
   },
 
-getSellerProductByAdmin: async (req, res) => {
-  try {
-    let page = parseInt(req.query.page) || 1;
-    let limit = parseInt(req.query.limit);
-    let skip = (page - 1) * limit;
+  getSellerProductByAdmin: async (req, res) => {
+    try {
+      let page = parseInt(req.query.page) || 1;
+      let limit = parseInt(req.query.limit);
+      let skip = (page - 1) * limit;
 
-    let query = {};
+      let query = {};
 
-    if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, "i");
+      if (req.query.search) {
+        const searchRegex = new RegExp(req.query.search, "i");
 
-     
-      query.$or = [
-        { name: searchRegex } 
-      ];
+        query.$or = [{ name: searchRegex }];
+      }
+
+      let product = await Product.find(query)
+        .populate("category")
+        .populate("userid", "-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      console.log(product);
+      // Filter again after populate (category.name and seller name)
+      if (req.query.search) {
+        const searchRegex = new RegExp(req.query.search, "i");
+
+        product = product.filter(
+          (p) =>
+            searchRegex.test(p.name) ||
+            searchRegex.test(p.categoryName || "") ||
+            searchRegex.test(p.userid?.username || "")
+        );
+      }
+
+      const totalProducts = product.length;
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      return res.status(200).json({
+        status: true,
+        data: product,
+        pagination: {
+          totalItems: totalProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      return response.error(res, error);
     }
-
-    let product = await Product.find(query)
-      .populate("category")
-      .populate("userid", "-password")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-      console.log(product)
-    // Filter again after populate (category.name and seller name)
-    if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, "i");
-
-      product = product.filter(p =>
-        searchRegex.test(p.name) ||
-        searchRegex.test(p.categoryName || "") ||
-        searchRegex.test(p.userid?.username || "")
-      );
-    }
-
-    const totalProducts = product.length;
-    const totalPages = Math.ceil(totalProducts / limit);
-
-    return res.status(200).json({
-      status: true,
-      data: product,
-      pagination: {
-        totalItems: totalProducts,
-        totalPages: totalPages,
-        currentPage: page,
-        itemsPerPage: limit,
-      },
-    });
-  } catch (error) {
-    return response.error(res, error);
-  }
-},
-
+  },
 
   getAssignedOrder: async (req, res) => {
     try {
@@ -1483,7 +1498,7 @@ getSellerProductByAdmin: async (req, res) => {
   },
 
   reminderSellerForReturn: async (req, res) => {
-    try{ 
+    try {
       const { orderId, sellerId } = req.body;
       const seller = await User.findById(sellerId).select("email");
 
@@ -1500,6 +1515,51 @@ getSellerProductByAdmin: async (req, res) => {
       });
     } catch (error) {
       console.log("Error in reminderSellerForReturn:", error);
+      return response.error(res, error);
+    }
+  },
+
+  createComboProduct: async (req, res) => {
+    try {
+      const { comboProducts, userid, old_price, offer_price } = req.body;
+
+      if (!comboProducts?.length || !userid || !old_price || !offer_price) {
+        return res.status(400).json({ message: "Missing required data" });
+      }
+
+      const newCombo = new ComboProduct({
+        comboItems: comboProducts.map((item) => ({
+          product: item.product,
+          selected_slot: item.selected_slot,
+        })),
+        userid,
+        old_price,
+        offer_price,
+      });
+
+      const comboProduct = await newCombo.save();
+
+      return response.ok(res, {
+        message: "Combo product created successfully",
+        product: comboProduct,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
+  getComboProduct: async (req, res) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const comboProducts = await ComboProduct.find()
+        .populate("comboItems.product", "name price")
+        .populate("userid", "username email")
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      return response.ok(res, comboProducts);
+    } catch (error) {
       return response.error(res, error);
     }
   },

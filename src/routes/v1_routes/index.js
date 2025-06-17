@@ -153,6 +153,13 @@ router.get("/getProduct", product.getProduct);
 router.get("/getProductforseller",isAuthenticated(["USER", "ADMIN", "SELLER","EMPLOYEE"]), product.getProductforseller);
 router.get("/getSponseredProduct", product.getSponseredProduct);
 
+// Combo product
+router.post(
+    "/createComboProduct",
+    isAuthenticated(["ADMIN", "SELLER"]),
+    product.createComboProduct
+);
+
 router.post(
     "/updateProduct",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
