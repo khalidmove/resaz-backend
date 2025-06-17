@@ -17,6 +17,9 @@ const notification = require("../../app/controller/notification");
 const { createContent, getContent, updateContent } = require("../../app/controller/ContentManagement");
 const { getFaqs, createFaq, updateFaq, deleteFaq } = require('../../app/controller/Faq');
 const dashboard = require("../../app/controller/dashboard");
+const FlashSale = require("../../app/controller/sale")
+const cron = require("node-cron");
+
 
 router.post("/login", user.login);
 router.post("/signUp", user.signUp);
@@ -457,7 +460,31 @@ router.get("/getDailyTopSellingProduct", isAuthenticated(["ADMIN", "SELLER"]), d
 router.post("/reminderSellerForReturn", isAuthenticated(["ADMIN"]), product.reminderSellerForReturn);
 router.post("/sendNotification", isAuthenticated(["ADMIN"]), notification.sendNotification);
 
-// Dashboard stats
-// router.get("/getDashboardStats", isAuthenticated(["ADMIN", "SELLER"]), user.getDashboardStats);
+
+router.post(
+    "/createSale",
+    isAuthenticated(["SELLER"]),
+    FlashSale.createFlashSale
+);
+
+router.delete(
+    "/deleteSale",
+    isAuthenticated(["SELLER"]),
+    FlashSale.deleteFlashSale
+);
+
+router.get("/getFlashSale", FlashSale.getFlashSale);
+
+router.post(
+    "/deleteFlashSaleProduct",
+    isAuthenticated(["SELLER"]),
+    FlashSale.deleteFlashSaleProduct
+);
+router.get("/getProductbySale", product.getProductBySale);
+
+cron.schedule("* * * * *", () => {
+    FlashSale.endExpiredFlashSales();
+});
+
 
 module.exports = router;
