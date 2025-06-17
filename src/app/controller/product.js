@@ -12,6 +12,7 @@ const { notify } = require("../services/notification");
 const Review = mongoose.model("Review");
 const Favourite = mongoose.model("Favourite");
 const Category = mongoose.model("Category");
+const FlashSale = mongoose.model("FlashSale");
 
 module.exports = {
   createProduct: async (req, res) => {
@@ -1503,4 +1504,28 @@ getSellerProductByAdmin: async (req, res) => {
       return response.error(res, error);
     }
   },
+
+      getProductBySale: async (req, res) => {
+        try {
+
+            const flashSales = await FlashSale.find();
+
+            if (!flashSales || flashSales.length === 0) {
+                return response.ok(res, []);
+            }
+
+            const productIds = flashSales.flatMap(flashSale => flashSale.products);
+            if (!productIds || productIds.length === 0) {
+                return response.ok(res, []);
+            }
+
+            const productDetails = await Product.find({ _id: { $in: productIds } });
+
+            return response.ok(res, productDetails);
+
+        } catch (error) {
+            console.error("Error fetching products by sale:", error);
+            return response.error(res, error);
+        }
+    },
 };
