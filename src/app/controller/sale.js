@@ -56,6 +56,7 @@ module.exports = {
       return response.error(res, error);
     }
   },
+
   deleteFlashSaleProduct: async (req, res) => {
     try {
       const { _id, SellerId } = req.body;
@@ -119,4 +120,27 @@ module.exports = {
       console.error("Error deleting expired flash sales:", error);
     }
   },
+
+  getOneFlashSalePerSeller: async (req, res) => {
+  try {
+    const flashSales = await FlashSale.aggregate([
+      {
+        $sort: { createdAt: -1 } 
+      },
+      {
+        $group: {
+          _id: "$SellerId",
+          flashSale: { $first: "$$ROOT" }
+        }
+      }
+    ]);
+
+    const populatedFlashSales = await FlashSale.populate(flashSales.map(f => f.flashSale), { path: "products" });
+
+    return response.ok(res, populatedFlashSales);
+  } catch (error) {
+    return response.error(res, error);
+  }
+},
+
 };
