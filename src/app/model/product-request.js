@@ -158,6 +158,10 @@ const productrequestchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    deliverylocation: {
+      type: pointSchema,
+    },
+    deliveryimg: [{ imgname: { type: String } }],
 
 
     // return: {

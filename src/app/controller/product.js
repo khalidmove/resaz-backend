@@ -1120,6 +1120,8 @@ module.exports = {
       if (req.body.status === "Delivered") {
         product.onthewaytodelivery = false;
         product.deliveredAt = new Date();
+        product.deliverylocation = req.body.deliverylocation;
+        product.deliveryimg = req.body.deliveryimg;
         await notify(
           product.user,
           "Order delivered",
