@@ -162,6 +162,26 @@ router.post(
     isAuthenticated(["ADMIN", "SELLER"]),
     product.createComboProduct
 );
+router.get(
+    "/getComboProduct",
+    // isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getComboProduct
+);
+router.get(
+    "/getComboProductById/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getComboProductById
+);
+router.post(
+    "/updateComboProduct/:id",
+    isAuthenticated(["ADMIN", "SELLER"]),
+    product.updateComboProduct
+);
+router.delete(
+    "/deleteComboProduct/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.deleteComboProduct
+);
 
 router.post(
     "/updateProduct",
