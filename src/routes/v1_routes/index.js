@@ -370,6 +370,7 @@ router.post("/getOrderHistoryByEmployee",isAuthenticated(["EMPLOYEE"]), product.
 router.post("/createWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.createWithdrawreq);
 router.get("/getWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreq);
 router.get("/getWithdrawreqbyseller",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreqbyseller);
+router.get("/getWithdrawreqbysellerId/:id",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreqbysellerId);
 router.post("/updateWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.updateWithdrawreq);
 
 
