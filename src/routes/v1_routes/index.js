@@ -474,6 +474,7 @@ router.delete(
 );
 
 router.get("/getFlashSale", FlashSale.getFlashSale);
+router.get("/getOneFlashSalePerSeller", FlashSale.getOneFlashSalePerSeller);
 
 router.post(
     "/deleteFlashSaleProduct",
