@@ -1629,7 +1629,7 @@ getProductByComboId: async (req, res) => {
       "comboItems.product": req?.query?.product_id,
     }).populate({
           "path": "comboItems.product",
-          "select": "name price category price_slot",
+          "select": "name price category price_slot varients",
           "populate": {
             "path": "category",
             "select": "name"
