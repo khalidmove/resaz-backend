@@ -143,6 +143,35 @@ module.exports = {
     }
   },
 
+  getComboProductByslug: async (req, res) => {
+    try {
+      let product = await Product.findOne({ slug: req?.params?.id }).populate(
+        "category",
+        "name slug"
+      );
+      let reviews = await Review.find({ product: product._id }).populate(
+        "posted_by",
+        "username"
+      );
+      let favourite;
+      if (req.query.user) {
+        favourite = await Favourite.findOne({
+          product: product._id,
+          user: req.query.user,
+        });
+      }
+      let d = {
+        ...product._doc,
+        rating: await getReview(product._id),
+        reviews,
+        favourite: favourite ? true : false,
+      };
+      return response.ok(res, d);
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
   getProductById: async (req, res) => {
     try {
       let product = await Product.findById(req?.params?.id).populate(
@@ -190,23 +219,30 @@ module.exports = {
     }
   },
 
-getProductByComboId: async (req, res) => {
-  try {
-    const productId = req.params.id;
+  getProductByComboId: async (req, res) => {
+    try {
+      const productId = req.params.id;
 
-    const combo = await ComboProduct.findOne({ "comboItems.product": productId })
-      .populate("comboItems.product")
-      .populate("userid", "-password");
+      const combos = await ComboProduct.find({
+        "comboItems.product": productId,
+      })
+        .populate("comboItems.product")
+        .populate("userid", "-password");
 
-    if (!combo) {
-      return response.error(res, { message: "Combo containing this product not found." });
+      if (!combos || combos.length === 0) {
+        return response.error(res, {
+          message: "No combos found containing this product.",
+        });
+      }
+
+      return response.ok(res, combos);
+    } catch (err) {
+      return response.error(
+        res,
+        err.message || "An error occurred while fetching the combos."
+      );
     }
-
-    return response.ok(res, combo);
-  } catch (err) {
-    return response.error(res, err.message || "An error occurred while fetching the combo.");
-  }
-},
+  },
 
   getProductBycategoryId: async (req, res) => {
     console.log(req.query);
@@ -438,6 +474,47 @@ getProductByComboId: async (req, res) => {
       const sellersNotified = new Set();
       const sellerOrders = {};
 
+      if (payload.comboProductDetail?.length > 0) {
+        for (const combo of payload.comboProductDetail) {
+          const comboSellerId = combo.comboItems[0].seller_id?.toString();
+
+          for (const item of combo.comboItems) {
+            await Product.findByIdAndUpdate(
+              item.product,
+              { $inc: { sold_pieces: combo.qty } },
+              { new: true }
+            );
+          }
+
+          if (!sellerOrders[comboSellerId]) {
+            sellerOrders[comboSellerId] = {
+              user: req.user.id,
+              seller_id: comboSellerId,
+              status: "Pending",
+              productDetail: [],
+              comboProductDetail: [],
+              shipping_address: payload.shipping_address,
+              total: 0,
+              location: payload.location,
+              paymentmode: payload.paymentmode,
+              timeslot: payload.timeslot,
+              deliveryCharge: payload.deliveryCharge,
+              deliveryTip: payload.deliveryTip,
+            };
+          }
+
+          sellerOrders[comboSellerId].comboProductDetail.push({
+            comboId: combo.comboId,
+            qty: combo.qty,
+            price: combo.price,
+            total: combo.total,
+            comboItems: combo.comboItems,
+          });
+
+          sellerOrders[comboSellerId].total += Number(combo.total);
+        }
+      }
+
       const productIds = payload.productDetail.map((item) => item.product);
       const products = await Product.find({ _id: { $in: productIds } }).select(
         "category"
@@ -580,6 +657,7 @@ getProductByComboId: async (req, res) => {
       return response.error(res, error);
     }
   },
+
   getTopSoldProduct: async (req, res) => {
     try {
       const { page = 1, limit = 20 } = req.query;
@@ -1300,44 +1378,13 @@ getProductByComboId: async (req, res) => {
       const { page = 1, limit = 20 } = req.query;
       const product = await ProductRequest.find({ user: req.user.id })
         .populate("productDetail.product", "-varients")
+        .populate({
+          path: "comboProductDetail.comboItems.product",
+          select: "",
+        })
         .limit(limit * 1)
         .skip((page - 1) * limit)
         .sort({ createdAt: -1 });
-      // const product = await ProductRequest.aggregate([
-      //     {
-      //         $match: { user: new mongoose.Types.ObjectId(req.user.id) }
-      //     },
-      //     {
-      //         $unwind: {
-      //             path: '$productDetail',
-      //             preserveNullAndEmptyArrays: true
-      //         }
-      //     },
-      //     {
-      //         $lookup: {
-      //             from: 'products',
-      //             localField: 'productDetail.product',
-      //             foreignField: '_id',
-      //             as: 'productDetail.product',
-      //             pipeline: [
-
-      //                 {
-      //                     $project: {
-      //                         name: 1
-      //                     }
-      //                 },
-
-      //             ]
-      //         }
-      //     },
-      //     {
-      //         $unwind: {
-      //             path: '$productDetail.product',
-      //             preserveNullAndEmptyArrays: true
-      //         }
-      //     },
-
-      // ])
 
       return response.ok(res, product);
     } catch (error) {
@@ -1606,12 +1653,12 @@ getProductByComboId: async (req, res) => {
     try {
       const comboProduct = await ComboProduct.findById(req.params.id)
         .populate({
-          "path": "comboItems.product",
-          "select": "name price category price_slot",
-          "populate": {
-            "path": "category",
-            "select": "name"
-          }
+          path: "comboItems.product",
+          select: "name price category price_slot",
+          populate: {
+            path: "category",
+            select: "name",
+          },
         })
         .populate("userid", "username email");
       if (!comboProduct) {
