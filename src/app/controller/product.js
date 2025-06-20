@@ -190,6 +190,24 @@ module.exports = {
     }
   },
 
+getProductByComboId: async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    const combo = await ComboProduct.findOne({ "comboItems.product": productId })
+      .populate("comboItems.product")
+      .populate("userid", "-password");
+
+    if (!combo) {
+      return response.error(res, { message: "Combo containing this product not found." });
+    }
+
+    return response.ok(res, combo);
+  } catch (err) {
+    return response.error(res, err.message || "An error occurred while fetching the combo.");
+  }
+},
+
   getProductBycategoryId: async (req, res) => {
     console.log(req.query);
     try {

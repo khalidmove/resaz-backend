@@ -148,6 +148,7 @@ router.get("/getProductById/:id", product.getProductById);
 router.get("/getProductByslug/:id", product.getProductByslug);
 router.post("/compareProduct", product.compareProduct);
 router.get("/getProductbycategory/:id", product.getProductbycategory);
+router.get("/getProductByComboId/:id", product.getProductByComboId);
 router.get("/getProductBycategoryId", product.getProductBycategoryId);
 router.get("/getProductBythemeId/:id", product.getProductBythemeId);
 router.get("/getTopSoldProduct", product.getTopSoldProduct);
