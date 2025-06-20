@@ -14,35 +14,66 @@ module.exports = {
   //     return response.error(res, error);
   //   }
   // },
-  createWithdrawreq: async (req, res) => {
-    try {
-      const userId = req.user.id;
+createWithdrawreq: async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const amountRequested = parseFloat(req.body.amount);
 
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const existingRequest = await Withdrawreq.findOne({
-        request_by: userId,
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
+    if (isNaN(amountRequested) || amountRequested <= 0) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid withdrawal amount.",
       });
-
-      if (existingRequest) {
-        return res.status(400).json({
-          status: false,
-          message: "You have already made a withdrawal request today.",
-        });
-      }
-
-      req.body.request_by = userId;
-      const notify = new Withdrawreq(req.body);
-      const noti = await notify.save();
-      return response.ok(res, noti);
-    } catch (error) {
-      return response.error(res, error.message || "An error occurred.");
     }
-  },
+
+    // const halfAmount = amountRequested / 2;
+    // if (halfAmount < 100) {
+    //   return res.status(400).json({
+    //     status: false,
+    //     message: "Minimum withdrawal amount is 200, half of it is 100.",
+    //   });
+    // }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingRequest = await Withdrawreq.findOne({
+      request_by: userId,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        status: false,
+        message: "You have already made a withdrawal request today.",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user || user.wallet < amountRequested) {
+      return res.status(400).json({
+        status: false,
+        message: "Insufficient balance for withdrawal.",
+      });
+    }
+
+    const withdrawalRequest = new Withdrawreq({
+      request_by: userId,
+      amount: amountRequested,
+      note: req.body.note || "",
+      settle: "Pending",
+    });
+
+    const savedRequest = await withdrawalRequest.save();
+    return response.ok(res, savedRequest);
+
+  } catch (error) {
+    console.error("Withdrawal Request Error:", error);
+    return response.error(res, error.message || "An error occurred.");
+  }
+},
 
   getWithdrawreq: async (req, res) => {
     try {
