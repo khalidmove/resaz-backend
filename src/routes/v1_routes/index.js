@@ -146,6 +146,7 @@ router.post(
 //Product
 router.get("/getProductById/:id", product.getProductById);
 router.get("/getProductByslug/:id", product.getProductByslug);
+router.get("/getComboProductByslug/:id", product.getComboProductByslug);
 router.post("/compareProduct", product.compareProduct);
 router.get("/getProductbycategory/:id", product.getProductbycategory);
 router.get("/getProductByComboId/:id", product.getProductByComboId);

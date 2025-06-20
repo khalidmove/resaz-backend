@@ -1,7 +1,7 @@
 "use strict";
 
 const mongoose = require("mongoose");
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 const generateShortTimestamp = () => {
   const now = Date.now();
@@ -10,7 +10,7 @@ const generateShortTimestamp = () => {
 
 const generateUniqueOrderId = () => {
   const timestampPart = generateShortTimestamp();
-  const randomPart = crypto.randomBytes(2).toString('hex').toUpperCase();
+  const randomPart = crypto.randomBytes(2).toString("hex").toUpperCase();
   return `ORD-${timestampPart}-${randomPart}`;
 };
 
@@ -57,10 +57,10 @@ const productrequestchema = new mongoose.Schema(
           other_price: { type: Number },
         },
         // return and refund related
-        isReturnable: { type: Boolean}, // capture it from product at order time
+        isReturnable: { type: Boolean }, // capture it from product at order time
         returnDetails: {
-          isReturned: { type: Boolean, default: false}, // for return request
-          isRefunded: { type: Boolean, default: false}, // for refund request
+          isReturned: { type: Boolean, default: false }, // for return request
+          isRefunded: { type: Boolean, default: false }, // for refund request
           returnRequestDate: Date, // for return request date
           returnDate: Date, // for return date when product is picked up again by seller
           returnStatus: {
@@ -79,8 +79,33 @@ const productrequestchema = new mongoose.Schema(
           proofImages: [String], // images for proof of return and refund
           refundAmount: Number, // amount to be refunded
           refundedAt: Date, // date when refund is processed
-          refundWithoutReturn: { type: Boolean}, // for refund without return ----> for auto-refund
+          refundWithoutReturn: { type: Boolean }, // for refund without return ----> for auto-refund
         },
+      },
+    ],
+    comboProductDetail: [
+      {
+        comboId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Combo",
+        },
+        qty: Number,
+        price: Number,
+        total: Number,
+        comboItems: [
+          {
+            product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+            seller_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            qty: Number,
+            price: Number,
+            price_slot: {
+              value: Number,
+              unit: String,
+              our_price: Number,
+              other_price: Number,
+            },
+          },
+        ],
       },
     ],
     user: {
@@ -124,8 +149,8 @@ const productrequestchema = new mongoose.Schema(
       type: Number,
     },
     finalAmount: {
-          type: Number,
-        },
+      type: Number,
+    },
     location: {
       type: pointSchema,
     },
@@ -163,7 +188,6 @@ const productrequestchema = new mongoose.Schema(
     },
     deliveryimg: [{ imgname: { type: String } }],
 
-
     // return: {
     //   type: Boolean,
     // },
@@ -192,6 +216,7 @@ const productrequestchema = new mongoose.Schema(
   }
 );
 
+
 productrequestchema.set("toJSON", {
   getters: true,
   virtuals: false,
@@ -203,7 +228,7 @@ productrequestchema.set("toJSON", {
 productrequestchema.index({ location: "2dsphere" });
 productrequestchema.index({ orderId: 1 }, { unique: true });
 
-productrequestchema.pre('save', async function (next) {
+productrequestchema.pre("save", async function (next) {
   const ProductRequest = this.constructor;
 
   if (!this.orderId) {
