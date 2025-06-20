@@ -162,6 +162,26 @@ router.post(
     isAuthenticated(["ADMIN", "SELLER"]),
     product.createComboProduct
 );
+router.get(
+    "/getComboProduct",
+    // isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getComboProduct
+);
+router.get(
+    "/getComboProductById/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getComboProductById
+);
+router.post(
+    "/updateComboProduct/:id",
+    isAuthenticated(["ADMIN", "SELLER"]),
+    product.updateComboProduct
+);
+router.delete(
+    "/deleteComboProduct/:id",
+    isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.deleteComboProduct
+);
 
 router.post(
     "/updateProduct",
@@ -350,6 +370,7 @@ router.post("/getOrderHistoryByEmployee",isAuthenticated(["EMPLOYEE"]), product.
 router.post("/createWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.createWithdrawreq);
 router.get("/getWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreq);
 router.get("/getWithdrawreqbyseller",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreqbyseller);
+router.get("/getWithdrawreqbysellerId/:id",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.getWithdrawreqbysellerId);
 router.post("/updateWithdrawreq",isAuthenticated(["USER", "ADMIN","DRIVER","SELLER"]), withdrawreq.updateWithdrawreq);
 
 

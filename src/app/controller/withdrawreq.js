@@ -4,14 +4,43 @@ const response = require("./../responses");
 const User = mongoose.model("User");
 
 module.exports = {
+  // createWithdrawreq: async (req, res) => {
+  //   try {
+  //     req.body.request_by = req.user.id;
+  //     const notify = new Withdrawreq(req.body);
+  //     const noti = await notify.save();
+  //     return response.ok(res, noti);
+  //   } catch (e) {
+  //     return response.error(res, error);
+  //   }
+  // },
   createWithdrawreq: async (req, res) => {
     try {
-      req.body.request_by = req.user.id;
+      const userId = req.user.id;
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const existingRequest = await Withdrawreq.findOne({
+        request_by: userId,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      if (existingRequest) {
+        return res.status(400).json({
+          status: false,
+          message: "You have already made a withdrawal request today.",
+        });
+      }
+
+      req.body.request_by = userId;
       const notify = new Withdrawreq(req.body);
       const noti = await notify.save();
       return response.ok(res, noti);
-    } catch (e) {
-      return response.error(res, error);
+    } catch (error) {
+      return response.error(res, error.message || "An error occurred.");
     }
   },
 
@@ -23,7 +52,7 @@ module.exports = {
       let skip = (page - 1) * limit; // Calculate the number of items to skip
 
       const reqlist = await Withdrawreq.find({ settle: "Pending" })
-        .populate("request_by", "username number")
+        .populate("request_by", "username number wallet")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -57,6 +86,23 @@ module.exports = {
       const reqlist = await Withdrawreq.find({ request_by: req.user.id }).sort({
         createdAt: -1,
       });
+      return response.ok(res, reqlist);
+    } catch (e) {
+      return response.error(res, error);
+    }
+  },
+  getWithdrawreqbysellerId: async (req, res) => {
+    const id = req.params.id;
+    const limit = parseInt(req.query.limit) || 10;
+    if (!id) {
+      return response.error(res, "Seller ID is required");
+    }
+    try {
+      const reqlist = await Withdrawreq.find({ request_by: id })
+        .sort({
+          createdAt: -1,
+        })
+        .limit(limit);
       return response.ok(res, reqlist);
     } catch (e) {
       return response.error(res, error);

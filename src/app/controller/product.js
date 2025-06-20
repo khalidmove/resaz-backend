@@ -1555,18 +1555,103 @@ module.exports = {
     try {
       const { page = 1, limit = 20 } = req.query;
       const comboProducts = await ComboProduct.find()
-        .populate("comboItems.product", "name price")
+        .populate({
+          path: "comboItems.product",
+          select: "name price category",
+          populate: {
+            path: "category",
+            select: "name",
+          },
+        })
         .populate("userid", "username email")
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
-
-      return response.ok(res, comboProducts);
+      const totalComboProducts = await ComboProduct.countDocuments();
+      const totalPages = Math.ceil(totalComboProducts / limit);
+      return res.status(200).json({
+        status: true,
+        data: comboProducts,
+        pagination: {
+          totalItems: totalComboProducts,
+          totalPages: totalPages,
+          currentPage: page,
+          itemsPerPage: limit,
+        },
+      });
     } catch (error) {
       return response.error(res, error);
     }
   },
-  
+
+  getComboProductById: async (req, res) => {
+    try {
+      const comboProduct = await ComboProduct.findById(req.params.id)
+        .populate({
+          "path": "comboItems.product",
+          "select": "name price category price_slot",
+          "populate": {
+            "path": "category",
+            "select": "name"
+          }
+        })
+        .populate("userid", "username email");
+      if (!comboProduct) {
+        return res.status(404).json({ message: "Combo product not found" });
+      }
+      return response.ok(res, comboProduct);
+    } catch (error) {
+      console.error("Error fetching combo product by ID:", error);
+      return response.error(res, error);
+    }
+  },
+  updateComboProduct: async (req, res) => {
+    try {
+      const { comboProducts, old_price, offer_price } = req.body;
+
+      if (!comboProducts?.length || !old_price || !offer_price) {
+        return res.status(400).json({ message: "Missing required data" });
+      }
+
+      const comboProduct = await ComboProduct.findByIdAndUpdate(
+        req.params.id,
+        {
+          comboItems: comboProducts.map((item) => ({
+            product: item.product,
+            selected_slot: item.selected_slot,
+          })),
+          old_price,
+          offer_price,
+        },
+        { new: true }
+      );
+
+      if (!comboProduct) {
+        return res.status(404).json({ message: "Combo product not found" });
+      }
+
+      return response.ok(res, {
+        message: "Combo product updated successfully",
+        product: comboProduct,
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+  deleteComboProduct: async (req, res) => {
+    try {
+      const comboProduct = await ComboProduct.findByIdAndDelete(req.params.id);
+      if (!comboProduct) {
+        return res.status(404).json({ message: "Combo product not found" });
+      }
+      return response.ok(res, {
+        message: "Combo product deleted successfully",
+      });
+    } catch (error) {
+      return response.error(res, error);
+    }
+  },
+
   getProductBySale: async (req, res) => {
     try {
       const flashSales = await FlashSale.find();
