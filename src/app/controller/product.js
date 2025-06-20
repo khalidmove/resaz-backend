@@ -1378,44 +1378,13 @@ module.exports = {
       const { page = 1, limit = 20 } = req.query;
       const product = await ProductRequest.find({ user: req.user.id })
         .populate("productDetail.product", "-varients")
+        .populate({
+          path: "comboProductDetail.comboItems.product",
+          select: "",
+        })
         .limit(limit * 1)
         .skip((page - 1) * limit)
         .sort({ createdAt: -1 });
-      // const product = await ProductRequest.aggregate([
-      //     {
-      //         $match: { user: new mongoose.Types.ObjectId(req.user.id) }
-      //     },
-      //     {
-      //         $unwind: {
-      //             path: '$productDetail',
-      //             preserveNullAndEmptyArrays: true
-      //         }
-      //     },
-      //     {
-      //         $lookup: {
-      //             from: 'products',
-      //             localField: 'productDetail.product',
-      //             foreignField: '_id',
-      //             as: 'productDetail.product',
-      //             pipeline: [
-
-      //                 {
-      //                     $project: {
-      //                         name: 1
-      //                     }
-      //                 },
-
-      //             ]
-      //         }
-      //     },
-      //     {
-      //         $unwind: {
-      //             path: '$productDetail.product',
-      //             preserveNullAndEmptyArrays: true
-      //         }
-      //     },
-
-      // ])
 
       return response.ok(res, product);
     } catch (error) {
