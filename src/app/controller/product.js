@@ -1623,6 +1623,24 @@ getProductByComboId: async (req, res) => {
       return response.error(res, error);
     }
   },
+  getCombosIncludProduct: async (req, res) => {
+    try {
+    const combos = await ComboProduct.find({
+      "comboItems.product": req?.query?.product_id,
+    }).populate({
+          "path": "comboItems.product",
+          "select": "name price category price_slot",
+          "populate": {
+            "path": "category",
+            "select": "name"
+          }
+        }).populate("userid", "username email");
+      return response.ok(res, combos);
+    } catch (error) {
+      console.error("Error fetching combo product by ID:", error);
+      return response.error(res, error);
+    }
+  },
   updateComboProduct: async (req, res) => {
     try {
       const { comboProducts, old_price, offer_price } = req.body;

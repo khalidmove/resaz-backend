@@ -169,6 +169,11 @@ router.get(
     product.getComboProduct
 );
 router.get(
+    "/getCombosIncludProduct",
+    // isAuthenticated(["USER", "ADMIN", "SELLER"]),
+    product.getCombosIncludProduct
+);
+router.get(
     "/getComboProductById/:id",
     isAuthenticated(["USER", "ADMIN", "SELLER"]),
     product.getComboProductById
