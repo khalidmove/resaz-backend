@@ -592,7 +592,7 @@ module.exports = {
         sellerOrders[sellerId].servicefee = feeData?.Servicefee;
         sellerOrders[sellerId].total = baseTotal;
         sellerOrders[sellerId].finalAmount =
-          baseTotal + taxAmount + deliveryCharge + deliveryTip;
+          baseTotal + taxAmount + deliveryCharge + deliveryTip+feeData?.Servicefee;
         // sellerOrders[sellerId].total = baseTotal + taxAmount;
 
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
@@ -1286,6 +1286,10 @@ module.exports = {
   getrequestProductbyid: async (req, res) => {
     try {
       const product = await ProductRequest.findById(req.params.id)
+        .populate({
+          path: "comboProductDetail.comboItems.product",
+          select: "",
+        })
         .populate("user driver_id seller_id", "-password")
         .populate("productDetail.product");
       return response.ok(res, product);
