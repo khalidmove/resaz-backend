@@ -19,7 +19,7 @@ const configuration = OneSignal.createConfiguration({
 });
 const client = new OneSignal.DefaultApi(configuration);
 
-async function sendNotification(content, player_ids, title) {
+async function sendNotification(content, player_ids, title,notifictone) {
   try {
     const notification = new OneSignal.Notification();
     notification.app_id = ONESIGNAL_APP_ID;
@@ -27,6 +27,10 @@ async function sendNotification(content, player_ids, title) {
     notification.contents = {
       en: content,
     };
+    if (notifictone) {
+      notification.ios_sound=`${notifictone}.wav`;
+      notification.android_sound='drivernotif';
+    }
     if (title) {
       notification.headings = {
         en: title,
@@ -45,13 +49,13 @@ async function findDevices(user) {
 }
 
 module.exports = {
-  notify: async (user,title,content) => {
+  notify: async (user,title,content,notifictone) => {
     const player_ids = await findDevices(user);
     // console.log('player_ids====>', player_ids)
     const notObj = { for: user, description: content, title: title };
     console.log('notobj',notObj)
     await Notification.create(notObj);
-    return sendNotification(content, player_ids, title);
+    return sendNotification(content, player_ids, title,notifictone);
   },
   notifyAllUser: async (users, content, job = null, title) => {
     

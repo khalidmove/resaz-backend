@@ -557,7 +557,8 @@ module.exports = {
           await notify(
             sellerId,
             "Order received",
-            "You have received a new order"
+            "You have received a new order",
+            "ordersreceived"
           );
           sellersNotified.add(sellerId);
         }
