@@ -27,10 +27,10 @@ async function sendNotification(content, player_ids, title,notifictone) {
     notification.contents = {
       en: content,
     };
-    if (notifictone) {
-      notification.ios_sound=`${notifictone}.wav`;
+    // if (notifictone) {
+      // notification.ios_sound=`${notifictone}.wav`;
       notification.android_sound='drivernotif';
-    }
+    // }
     if (title) {
       notification.headings = {
         en: title,
