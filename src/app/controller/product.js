@@ -556,13 +556,17 @@ module.exports = {
         if (!sellersNotified.has(sellerId)) {
           await notify(
             sellerId,
-            "Order received",
-            "You have received a new order",
+            "New Order Received",
+            "You have received a new order.",
             "ordersreceived"
           );
           sellersNotified.add(sellerId);
         }
-
+        await notify(
+          req?.user?.id,
+          "Order Placed",
+          "Your order has been placed successfully."
+        );
         const isReturnable = productCategoryMap.get(item.product.toString());
 
         sellerOrders[sellerId].productDetail.push({
@@ -593,7 +597,11 @@ module.exports = {
         sellerOrders[sellerId].servicefee = feeData?.Servicefee;
         sellerOrders[sellerId].total = baseTotal;
         sellerOrders[sellerId].finalAmount =
-          baseTotal + taxAmount + deliveryCharge + deliveryTip+feeData?.Servicefee;
+          baseTotal +
+          taxAmount +
+          deliveryCharge +
+          deliveryTip +
+          feeData?.Servicefee;
         // sellerOrders[sellerId].total = baseTotal + taxAmount;
 
         const newOrder = new ProductRequest(sellerOrders[sellerId]);
@@ -1209,10 +1217,21 @@ module.exports = {
           driverlist.length > 0 &&
             (await notify(
               driverlist,
-              "New Order receive",
-              "You New Order receive for delivery"
+              "New Order Received",
+              "You have received a new order for delivery.",
+              "ordersreceived"
             ));
         }
+        await notify(
+          product.seller_id,
+          "Driver Assigned",
+          `Order ${product.orderId} has been assigned to a driver.`
+        );
+        await notify(
+          product.assignedEmployee,
+          "Driver Assigned",
+          `Order ${product.orderId} has been assigned to a driver.`
+        );
       }
       if (req.body.status === "Delivered") {
         product.onthewaytodelivery = false;
@@ -1221,15 +1240,35 @@ module.exports = {
         product.deliveryimg = req.body.deliveryimg;
         await notify(
           product.user,
-          "Order delivered",
-          "You order delivered successfully"
+          "Order Delivered",
+          "Your order has been delivered successfully."
+        );
+        await notify(
+          product.seller_id,
+          "Order Delivered",
+          `Order ${product.orderId} has been delivered successfully.`
+        );
+        await notify(
+          product.assignedEmployee,
+          "Order Delivered",
+          `Order ${product.orderId} has been delivered successfully.`
         );
       }
       if (req.body.status === "Collected") {
         await notify(
           product.user,
-          "Order collected",
-          "Order collected by driver"
+          "Order Collected",
+          "Your order has been collected by the driver."
+        );
+        await notify(
+          product.seller_id,
+          "Order Collected",
+          `Order ${product.orderId} has been collected by the driver.`
+        );
+        await notify(
+          product.assignedEmployee,
+          "Order Collected",
+          `Order ${product.orderId} has been collected by the driver.`
         );
       }
 
@@ -1243,8 +1282,12 @@ module.exports = {
     try {
       const product = await ProductRequest.findById(req.params.id);
       product.onthewaytodelivery = true;
-
       product.save();
+      await notify(
+        product.user,
+        "Order is on the way",
+        "Order is on the way to delivery"
+      );
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -1340,8 +1383,25 @@ module.exports = {
         return response.badReq(res, { message: "Order already accepted" });
       }
       product.driver_id = req.user.id;
-      // product.status='Driveraccepted'
       product.save();
+      await notify(
+        product.user,
+        "Driver Assigned",
+        "A driver has been assigned for your order."
+      );
+
+      await notify(
+        product.seller_id,
+        "Driver Accepted",
+        `The driver has accepted Order ${product.orderId}.`
+      );
+
+      await notify(
+        product.assignedEmployee,
+        "Driver Accepted",
+        `The driver has accepted Order ${product.orderId}.`
+      );
+
       return response.ok(res, product);
     } catch (error) {
       return response.error(res, error);
@@ -1677,16 +1737,18 @@ module.exports = {
   },
   getCombosIncludProduct: async (req, res) => {
     try {
-    const combos = await ComboProduct.find({
-      "comboItems.product": req?.query?.product_id,
-    }).populate({
-          "path": "comboItems.product",
-          "select": "name price category price_slot varients",
-          "populate": {
-            "path": "category",
-            "select": "name"
-          }
-        }).populate("userid", "username email");
+      const combos = await ComboProduct.find({
+        "comboItems.product": req?.query?.product_id,
+      })
+        .populate({
+          path: "comboItems.product",
+          select: "name price category price_slot varients",
+          populate: {
+            path: "category",
+            select: "name",
+          },
+        })
+        .populate("userid", "username email");
       return response.ok(res, combos);
     } catch (error) {
       console.error("Error fetching combo product by ID:", error);
